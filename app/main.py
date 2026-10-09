@@ -1,27 +1,51 @@
-"""VerifiedBuild API: app setup and routes only. Logic lives in the other modules.
-
-Step 1 (contract first): every route returns its example from examples/.
-Real logic replaces them one endpoint at a time, without changing the shapes.
-"""
+"""VerifiedBuild API: app setup and routes only. The logic lives in the other modules."""
 
 import hmac
-import json
+import logging
 import re
-from pathlib import Path
+from contextlib import asynccontextmanager
 
-from fastapi import APIRouter, Depends, FastAPI, Header
+from fastapi import APIRouter, Depends, FastAPI, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
-from app import errors
+from app import applications, db, errors, github_ingest, report, resume, viva
 from app.config import settings
 from app.errors import ApiError
 from app.models import AnalyzeRequest, AnswerRequest, ApplyRequest, StudentCreate
 
-EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+log = logging.getLogger("verifiedbuild")
+for noisy in ("httpx", "google_genai"):
+    logging.getLogger(noisy).setLevel(logging.WARNING)
 
-app = FastAPI(title="VerifiedBuild API", version="v1")
+MAX_BODY_BYTES = 10 * 1024 * 1024
+LISTING_FIELDS = ("id", "title", "venture", "description", "required_skills", "tags")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if db.using_memory():
+        log.warning("No Supabase settings: using the in-memory store. Data is lost on restart.")
+    try:
+        db.seed_listings()
+    except Exception:
+        log.exception("Couldn't load seed/listings.json into the listings table")
+    yield
+
+
+app = FastAPI(title="VerifiedBuild API", version="v1", lifespan=lifespan)
 errors.register(app)
+
+
+@app.middleware("http")
+async def limit_body_size(request: Request, call_next):
+    if int(request.headers.get("content-length") or 0) > MAX_BODY_BYTES:
+        return errors.error_response(
+            "TOO_LARGE", "That upload is too big. Resumes must be under 5 MB and answers under 2 minutes.", 413)
+    return await call_next(request)
+
+
 # Added last, so it is the outermost layer and error responses carry CORS headers too.
 app.add_middleware(
     CORSMiddleware,
@@ -31,10 +55,6 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["Content-Disposition"],
 )
-
-
-def example(name: str) -> dict:
-    return json.loads((EXAMPLES / f"{name}.json").read_text(encoding="utf-8"))
 
 
 def require_admin(x_admin_key: str | None = Header(default=None)) -> None:
@@ -54,42 +74,56 @@ def health():
 
 @app.post("/api/students", status_code=201)
 def create_student(body: StudentCreate):
-    return example("post_students")
+    user = github_ingest.get_user(body.github_username)
+    if user is None:
+        raise ApiError("GITHUB_USER_NOT_FOUND", "We couldn't find that GitHub username.", 404)
+    claimed, source = [], "chips"
+    if body.resume_base64:
+        claimed, source = resume.from_pdf(body.resume_base64, body.resume_mime), "resume"
+    if not claimed and body.skills:
+        claimed, source = resume.from_chips(body.skills), "chips"
+    student = db.insert("students", {
+        "name": body.name, "email": body.email, "college": body.college,
+        "github_username": user["login"],  # GitHub's spelling, e.g. AshaRao not asharao
+        "interests": body.interests, "claimed_skills": claimed, "claimed_from": source,
+    })
+    return {"student_id": student["id"], "github_username": student["github_username"],
+            "claimed_skills": claimed, "claimed_from": source}
 
 
 @app.get("/api/github/{username}/repos")
 def list_repos(username: str):
-    return example("get_github_repos")
+    return {"repos": github_ingest.list_repos(username)}
 
 
 @app.post("/api/analyze", status_code=201)
 def analyze(body: AnalyzeRequest):
-    return example("post_analyze")
+    return viva.start(body.student_id, body.repo_full_name)
 
 
 @app.get("/api/viva/{session_id}")
 def get_viva(session_id: str):
-    return example("get_viva")
+    return viva.state(session_id)
 
 
 @app.post("/api/viva/{session_id}/answer")
 def submit_answer(session_id: str, body: AnswerRequest):
-    return example("post_viva_answer")
+    return viva.answer(session_id, body)
 
 
 @app.get("/api/report/{student_id}")
 def get_report(student_id: str):
-    return example("get_report")
+    return report.build(student_id)
 
 
 @app.get("/api/listings")
 def list_listings():
-    return example("get_listings")
+    return {"listings": [{k: row[k] for k in LISTING_FIELDS} for row in db.select("listings", order="position")]}
 
 
 @app.post("/api/apply", status_code=201)
 def apply(body: ApplyRequest):
-    return example("post_apply")
+    return applications.apply(body.student_id, body.listing_id, body.share_consent)
 
 
 # --- Recruiter flow: every route on this router needs X-Admin-Key ---
@@ -99,17 +133,17 @@ admin = APIRouter(prefix="/api/admin", dependencies=[Depends(require_admin)])
 
 @admin.get("/verify")
 def admin_verify():
-    return example("get_admin_verify")
+    return {"ok": True}
 
 
 @admin.get("/shortlist/{listing_id}")
 def shortlist(listing_id: str):
-    return example("get_admin_shortlist")
+    return applications.shortlist(listing_id)
 
 
 @admin.get("/shortlist/{listing_id}/csv")
 def shortlist_csv(listing_id: str):
-    csv_text = (EXAMPLES / "get_admin_shortlist.csv").read_text(encoding="utf-8")
+    csv_text = applications.shortlist_csv(listing_id)
     safe_id = re.sub(r"[^A-Za-z0-9_-]", "", listing_id)
     return Response(
         csv_text,
