@@ -78,11 +78,10 @@ class _Memory:
 
 class _Supabase:
     def __init__(self, url: str, key: str):
-        self.http = httpx.Client(
-            base_url=f"{url}/rest/v1",
-            headers={"apikey": key, "Authorization": f"Bearer {key}"},
-            timeout=15,
-        )
+        headers = {"apikey": key}
+        if key.startswith("eyJ"):  # legacy service_role JWT; new sb_secret_ keys are rejected as Bearer tokens
+            headers["Authorization"] = f"Bearer {key}"
+        self.http = httpx.Client(base_url=f"{url}/rest/v1", headers=headers, timeout=15)
 
     def _send(self, method, table, *, params=None, body=None, prefer=None):
         try:
