@@ -263,3 +263,27 @@ The download needs the header, so the frontend fetches it with `X-Admin-Key`, tu
 
 ## Utility
 - `GET /api/health` returns `{"ok": true, "demo_mode": false, "version": "v1"}`.
+
+---
+
+## Notes from the live API (still v1: no shape changes)
+
+- **Timing measured on real repos:** `POST /api/analyze` about 10–20 s; answer scoring about 3 s typed and 6 s spoken.
+- **Fields that can be `null`:** `build_history` (when GitHub has no history for the repo), `report.repo` (no viva started yet), `top_evidence` (no answers yet), `duration_s` (if the client didn't send it).
+- **Report before a viva:** `status` is `in_progress`, `overall` is 0, and `skills` and `evidence` are empty. `matches` is still filled in, from interests only.
+- **`audio_mime`** is accepted but not needed: every recording is converted to wav on the server.
+- **More error codes.** Show `message` as-is; the codes are for logic only.
+
+| Code | Status | When |
+|---|---|---|
+| `STUDENT_NOT_FOUND` | 404 | unknown `student_id` |
+| `SESSION_NOT_FOUND` | 404 | unknown `session_id` |
+| `QUESTION_NOT_FOUND` | 404 | `question_id` isn't in this viva |
+| `LISTING_NOT_FOUND` | 404 | unknown `listing_id` |
+| `REPO_NOT_FOUND` | 404 | repo doesn't exist or isn't public |
+| `NO_FOLLOW_UP` | 409 | `is_follow_up: true` but no follow-up is waiting |
+| `GITHUB_ERROR` | 502 | GitHub didn't answer; retry |
+| `TOO_LARGE` | 413 | request body over 10 MB |
+| `TOO_MANY_REQUESTS` | 429 | too many tries from one network in an hour |
+| `NOT_FOUND` / `METHOD_NOT_ALLOWED` | 404 / 405 | wrong path or method |
+| `DB_UNAVAILABLE` / `DB_ERROR` / `INTERNAL` | 503 / 500 / 500 | our side; retry |

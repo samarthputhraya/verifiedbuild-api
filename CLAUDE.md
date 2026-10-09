@@ -55,25 +55,37 @@ Read this file and **API_CONTRACT.md** before writing any code. API_CONTRACT.md 
 
 ## Repo layout
 ```
-app/main.py            FastAPI app, CORS, error handler, routes only (thin)
-app/config.py          env: GEMINI_API_KEY, GEMINI_MODEL, GITHUB_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_KEY, ADMIN_KEY, DEMO_MODE
-app/models.py          Pydantic request/response models, matching API_CONTRACT.md exactly
-app/errors.py          ApiError(code, message, status) + handler
-app/gemini.py          one helper: generate_json(parts, schema) with one retry on invalid JSON + timeout
-app/github_ingest.py   user check, repo list, tree, file selection, commit stats
+app/main.py            FastAPI app, CORS, error handler, rate limits, routes only (thin)
+app/config.py          env: GEMINI_API_KEY (empty = Vertex AI), GEMINI_MODEL, GEMINI_AUDIO_MODEL, GOOGLE_CLOUD_PROJECT,
+                       GOOGLE_CLOUD_LOCATION, GITHUB_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_KEY, ADMIN_KEY, DEMO_MODE
+app/models.py          Pydantic request models and the fixed vocabularies (tags, interests)
+app/errors.py          ApiError(code, message, status) + handlers
+app/gemini.py          generate_json(parts, schema) with one retry + per-attempt timeout; transcribe(wav)
+app/github_ingest.py   user check, repo list, tarball download, file selection, build history (GraphQL)
 app/resume.py          PDF -> claimed skills; chip -> tag mapping
-app/audio.py           base64 audio -> wav 16 kHz mono via ffmpeg when the mime isn't Gemini-native
+app/audio.py           base64 audio -> 16 kHz mono wav via ffmpeg (always)
 app/viva.py            question generation, answer evaluation, follow-up logic
 app/report.py          scores, verified levels, claimed vs verified, evidence
 app/matching.py        deterministic match score + "why" template
-app/db.py              Supabase client + small query helpers
-app/demo_cache.py      DEMO_MODE=cached responses
+app/applications.py    apply, recruiter shortlist, CSV
+app/db.py              Supabase REST (PostgREST) with httpx; in-memory store when Supabase isn't set
+app/demo_cache.py      DEMO_MODE=cached responses; `python -m app.demo_cache <session_id>` saves one
+scripts/stats.py       numbers for the pitch, from the live database
+seed/listings.json     the 6 listings, loaded into the database on every start
+seed/demo_cache/       saved demo repos (DEMO_MODE=cached)
+tests/                 offline tests: full flow against examples/*.json shapes, scoring rules
 examples/*.json        one sample response per endpoint, copied from API_CONTRACT.md
-supabase/schema.sql    tables + seed listings
+supabase/schema.sql    tables, unique keys, row-level security
 Dockerfile             python:3.11-slim + apt ffmpeg, uvicorn on $PORT
-requirements.txt       fastapi, uvicorn[standard], httpx, pydantic, google-genai, supabase
+requirements.txt       fastapi, uvicorn[standard], httpx, pydantic, google-genai (requirements-dev.txt adds pytest)
 .env.example, README.md, API_CONTRACT.md, CLAUDE.md
 ```
+
+**Decisions made during the build (measured, see README):**
+- Gemini runs on Vertex AI as the Cloud Run service account (no key). The Developer API key needed prepaid credits.
+- Question writing and scoring use `thinking_level=LOW`: about 10 s instead of 25–50 s for questions, and identical scores for 5 typed test answers scored 3 times each at both settings.
+- Voice is transcribed by `GEMINI_AUDIO_MODEL` first, then scored like text. The main model often hung on audio.
+- Files come from one tarball download, and build history from one GraphQL query, instead of dozens of REST calls.
 
 ---
 
