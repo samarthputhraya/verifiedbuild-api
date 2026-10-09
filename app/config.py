@@ -9,11 +9,13 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Settings:
-    gemini_api_key: str
+    gemini_api_key: str  # set = Gemini Developer API; empty = Vertex AI with the runtime's Google identity
     gemini_model: str
+    google_cloud_project: str
+    google_cloud_location: str
     github_token: str
     supabase_url: str
-    supabase_service_key: str
+    supabase_service_key: str  # empty = in-memory store (local runs and tests only)
     admin_key: str
     demo_mode: str  # "cached" turns on demo_cache.py; anything else means live
 
@@ -21,9 +23,11 @@ class Settings:
 def _load() -> Settings:
     return Settings(
         gemini_api_key=os.getenv("GEMINI_API_KEY", ""),
-        gemini_model=os.getenv("GEMINI_MODEL", ""),
+        gemini_model=os.getenv("GEMINI_MODEL", "") or "gemini-3.8-flash",
+        google_cloud_project=os.getenv("GOOGLE_CLOUD_PROJECT", ""),
+        google_cloud_location=os.getenv("GOOGLE_CLOUD_LOCATION", "") or "global",
         github_token=os.getenv("GITHUB_TOKEN", ""),
-        supabase_url=os.getenv("SUPABASE_URL", ""),
+        supabase_url=os.getenv("SUPABASE_URL", "").rstrip("/"),
         supabase_service_key=os.getenv("SUPABASE_SERVICE_KEY", ""),
         admin_key=os.getenv("ADMIN_KEY", ""),
         demo_mode=os.getenv("DEMO_MODE", ""),
