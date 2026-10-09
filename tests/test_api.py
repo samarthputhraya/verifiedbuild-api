@@ -131,3 +131,18 @@ def test_errors_use_the_contract_shape():
         assert r.status_code == 404 and set(r.json()["error"]) == {"code", "message"}
         r = c.post("/api/students", content=b"x" * 100, headers={"Content-Length": str(11 * 1024 * 1024), "Content-Type": "application/json"})
         assert r.status_code == 413
+
+
+def test_voice_answers_are_transcribed_then_scored_like_text(monkeypatch):
+    from app import audio, gemini
+    monkeypatch.setattr(audio, "prepare", lambda b64: b"RIFF fake wav")
+    monkeypatch.setattr(gemini, "transcribe", lambda wav: ("a good spoken answer", {"model": "fake-audio", "calls": 1, "tokens_in": 1, "tokens_out": 1, "latency_ms": 1}))
+    with TestClient(app) as c:
+        sid = c.post("/api/students", json=SIGNUP).json()["student_id"]
+        session = c.post("/api/analyze", json={"student_id": sid, "repo_full_name": "asharao/expense-split"}).json()["session_id"]
+        r = c.post(f"/api/viva/{session}/answer", json={"question_id": "q1", "mode": "voice", "audio_base64": "AAAA", "audio_mime": "audio/webm", "duration_s": 30})
+        assert r.status_code == 200
+        assert r.json()["transcript"] == "a good spoken answer" and r.json()["follow_up"] is None
+        monkeypatch.setattr(gemini, "transcribe", lambda wav: ("", {}))
+        r = c.post(f"/api/viva/{session}/answer", json={"question_id": "q2", "mode": "voice", "audio_base64": "AAAA", "audio_mime": "audio/webm"})
+        assert r.status_code == 422 and r.json()["error"]["code"] == "EMPTY_ANSWER"

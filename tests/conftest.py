@@ -15,7 +15,7 @@ CODE = "\n".join(f"line {i} of the settle function" for i in range(1, 81))
 FILES = {"server/settle.ts": CODE, "src/App.tsx": CODE, "api/auth.py": CODE}
 
 
-def fake_generate_json(parts, schema, *, system, validate=None, thinking=None):
+def fake_generate_json(parts, schema, *, system, validate=None, **options):
     usage = {"model": "fake", "calls": 1, "tokens_in": 100, "tokens_out": 50, "latency_ms": 5}
     if schema is viva.QUESTIONS_SCHEMA:
         data = {
