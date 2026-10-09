@@ -63,7 +63,7 @@ Tests run offline (GitHub and Gemini are faked): `python -m pytest`
 Google Cloud Run, region asia-south1. Settings go in `env.yaml` (git-ignored, same keys as `.env.example`).
 
 ```
-gcloud run deploy verifiedbuild-api --source . --region asia-south1 --allow-unauthenticated --timeout 300 --memory 1Gi --cpu 1 --min-instances 1 --env-vars-file env.yaml
+powershell -File scriptsdeploy.ps1      # writes env.yaml from .env, then deploys the last commit
 ```
 
 Run [supabase/schema.sql](supabase/schema.sql) once in the Supabase SQL editor. Listings load from [seed/listings.json](seed/listings.json) every time the API starts.
