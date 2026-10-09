@@ -1,0 +1,8 @@
+{
+  "question_id": "q1",
+  "transcript": "Sorting lets me greedily match the biggest debtor with the biggest creditor...",
+  "recorded": true,
+  "follow_up": "What happens to the number of transactions if two people owe exactly the same amount?",
+  "next_question_id": null,
+  "done": false
+}

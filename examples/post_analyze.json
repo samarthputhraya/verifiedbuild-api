@@ -1,0 +1,21 @@
+{
+  "session_id": "b2d7...",
+  "repo": {"full_name": "asharao/expense-split", "languages": {"TypeScript": 81.2, "CSS": 18.8}, "files_read": 12},
+  "repo_skills": [
+    {"tag": "backend", "evidence": "Express routes and settlement logic in server/routes.ts"},
+    {"tag": "frontend", "evidence": "React state and forms in src/App.tsx"}
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "file": "server/settle.ts",
+      "lines": "40-62",
+      "snippet": "export function settle(balances: Balance[]) {\n  ...\n}",
+      "snippet_start_line": 40,
+      "question": "Why do you sort debtors and creditors before matching them here, and what breaks if you don't?",
+      "skill": "backend",
+      "difficulty": "medium"
+    }
+  ],
+  "time_limit_s": 90
+}

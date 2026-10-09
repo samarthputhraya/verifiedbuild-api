@@ -1,0 +1,6 @@
+{
+  "repos": [
+    {"full_name": "asharao/expense-split", "description": "Split bills with friends", "language": "TypeScript", "stars": 3, "pushed_at": "2026-09-28T10:12:00Z"},
+    {"full_name": "asharao/loan-risk-ml", "description": null, "language": "Python", "stars": 0, "pushed_at": "2026-08-02T17:40:00Z"}
+  ]
+}

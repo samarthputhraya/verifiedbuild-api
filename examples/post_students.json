@@ -1,0 +1,10 @@
+{
+  "student_id": "6f1c2a9e-0b7e-4c1a-9d1e-2f9b0c7a1d11",
+  "github_username": "asharao",
+  "claimed_skills": [
+    {"name": "React", "tag": "frontend"},
+    {"name": "FastAPI", "tag": "backend"},
+    {"name": "Machine Learning", "tag": "ai_ml"}
+  ],
+  "claimed_from": "resume"
+}

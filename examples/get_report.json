@@ -1,0 +1,33 @@
+{
+  "student": {"student_id": "6f1c...", "name": "Asha Rao", "college": "KITS Warangal", "github_username": "asharao"},
+  "repo": {"full_name": "asharao/expense-split"},
+  "status": "done",
+  "overall": 72,
+  "skills": {"backend": 81, "frontend": 60, "data": 55},
+  "claimed_vs_verified": [
+    {"name": "React", "tag": "frontend", "claimed": true, "level": "partial"},
+    {"name": "FastAPI", "tag": "backend", "claimed": true, "level": "strong"},
+    {"name": "Machine Learning", "tag": "ai_ml", "claimed": true, "level": "not_shown"},
+    {"name": "data", "tag": "data", "claimed": false, "level": "partial"}
+  ],
+  "evidence": [
+    {
+      "question_id": "q1", "file": "server/settle.ts", "lines": "40-62",
+      "question": "Why do you sort debtors...",
+      "answer_excerpt": "Sorting lets me greedily match...",
+      "evidence_quote": "greedily match the biggest debtor with the biggest creditor",
+      "covered": ["greedy matching", "fewer transactions"],
+      "missed": ["ties between equal balances"],
+      "score": 8, "skill": "backend", "mode": "voice", "pasted": false, "duration_s": 74, "had_follow_up": false
+    }
+  ],
+  "build_history": {"commits": 46, "active_days": 19, "span_days": 33, "authors": 1, "your_commit_share": 1.0, "median_lines_per_commit": 38},
+  "matches": [
+    {
+      "listing_id": "l-promtal-backend", "title": "HR-Tech Backend Intern", "venture": "Promtal",
+      "match": 52,
+      "why": "Verified backend 81 covers 60% of this role; shared interests: saas.",
+      "applied": false
+    }
+  ]
+}

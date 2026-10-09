@@ -1,0 +1,10 @@
+{
+  "listings": [
+    {
+      "id": "l-promtal-backend", "title": "HR-Tech Backend Intern", "venture": "Promtal",
+      "description": "Build APIs for candidate matching.",
+      "required_skills": {"backend": 0.6, "data": 0.2, "security": 0.2},
+      "tags": ["hrtech", "saas"]
+    }
+  ]
+}
