@@ -1,0 +1,22 @@
+# Secrets
+.env
+.env.*
+!.env.example
+env.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Local tools
+.claude/settings.local.json
+.vscode/
+.idea/
+.DS_Store
+*.log
+
+# Local MCP config (Claude Code)
+.mcp.json
