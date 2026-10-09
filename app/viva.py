@@ -7,6 +7,7 @@ state()   what's answered and what's next, so a refreshed page can carry on.
 
 import logging
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 from app import audio, db, demo_cache, gemini, github_ingest
@@ -146,6 +147,7 @@ def public(question: dict) -> dict:
 
 
 def _analyze(full_name: str, login: str) -> dict:
+    started = time.monotonic()
     meta = github_ingest.get_repo(full_name)
     full_name = meta["full_name"]  # GitHub's own spelling
     with ThreadPoolExecutor(max_workers=2) as pool:
@@ -169,7 +171,7 @@ def _analyze(full_name: str, login: str) -> dict:
             "repo_skills": result["repo_skills"],
             "files": files,
             "questions": result["questions"],
-            "ai_usage": usage,
+            "ai_usage": {**usage, "total_ms": int((time.monotonic() - started) * 1000)},
         }
 
 
