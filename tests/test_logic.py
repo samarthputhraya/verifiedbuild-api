@@ -78,3 +78,21 @@ def test_file_selection_skips_noise_and_ranks_imports():
 
 def test_tags_are_the_six_fixed_ones():
     assert TAGS == ["backend", "frontend", "data", "ai_ml", "devops", "security"]
+
+
+def test_rate_limit_uses_the_last_forwarded_ip():
+    from starlette.requests import Request
+
+    from app.errors import ApiError
+    from app.main import per_hour
+
+    check = per_hour("test", 2).dependency
+
+    def request(forwarded):
+        return Request({"type": "http", "headers": [(b"x-forwarded-for", forwarded.encode())], "client": ("1.1.1.1", 1)})
+
+    check(request("fake-1, 9.9.9.9"))
+    check(request("fake-2, 9.9.9.9"))  # a made-up first entry doesn't create a new bucket
+    with pytest.raises(ApiError):
+        check(request("fake-3, 9.9.9.9"))
+    check(request("8.8.8.8"))  # other clients are unaffected

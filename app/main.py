@@ -3,6 +3,8 @@
 import hmac
 import logging
 import re
+import time
+from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, Depends, FastAPI, Header, Request
@@ -57,6 +59,27 @@ app.add_middleware(
 )
 
 
+_hits: dict[tuple[str, str], deque] = defaultdict(deque)
+
+
+def per_hour(name: str, limit: int):
+    """Caps calls per client IP per hour, so nobody can run up our Gemini bill.
+
+    Limits are generous because everyone at a venue may share one Wi-Fi IP.
+    """
+    def check(request: Request) -> None:
+        # Cloud Run appends the real client IP last, so earlier entries can't be used to dodge the limit.
+        forwarded = request.headers.get("x-forwarded-for", "")
+        ip = forwarded.split(",")[-1].strip() or (request.client.host if request.client else "?")
+        now, hits = time.monotonic(), _hits[(name, ip)]
+        while hits and now - hits[0] > 3600:
+            hits.popleft()
+        if len(hits) >= limit:
+            raise ApiError("TOO_MANY_REQUESTS", "Too many tries from your network. Please wait a few minutes and try again.", 429)
+        hits.append(now)
+    return Depends(check)
+
+
 def require_admin(x_admin_key: str | None = Header(default=None)) -> None:
     expected = settings.admin_key
     if not expected or not x_admin_key or not hmac.compare_digest(x_admin_key.encode(), expected.encode()):
@@ -72,7 +95,7 @@ def health():
 
 # --- Student flow ---
 
-@app.post("/api/students", status_code=201)
+@app.post("/api/students", status_code=201, dependencies=[per_hour("signup", 120)])
 def create_student(body: StudentCreate):
     user = github_ingest.get_user(body.github_username)
     if user is None:
@@ -96,7 +119,7 @@ def list_repos(username: str):
     return {"repos": github_ingest.list_repos(username)}
 
 
-@app.post("/api/analyze", status_code=201)
+@app.post("/api/analyze", status_code=201, dependencies=[per_hour("analyze", 60)])
 def analyze(body: AnalyzeRequest):
     return viva.start(body.student_id, body.repo_full_name)
 
@@ -106,7 +129,7 @@ def get_viva(session_id: str):
     return viva.state(session_id)
 
 
-@app.post("/api/viva/{session_id}/answer")
+@app.post("/api/viva/{session_id}/answer", dependencies=[per_hour("answer", 600)])
 def submit_answer(session_id: str, body: AnswerRequest):
     return viva.answer(session_id, body)
 
