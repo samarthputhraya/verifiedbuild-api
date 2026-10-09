@@ -63,7 +63,7 @@ Tests run offline (GitHub and Gemini are faked): `python -m pytest`
 Google Cloud Run, region asia-south1. Settings go in `env.yaml` (git-ignored, same keys as `.env.example`).
 
 ```
-powershell -File scriptsdeploy.ps1      # writes env.yaml from .env, then deploys the last commit
+powershell -File scripts\deploy.ps1     # writes env.yaml from .env, then deploys the last commit
 ```
 
 Run [supabase/schema.sql](supabase/schema.sql) once in the Supabase SQL editor. Listings load from [seed/listings.json](seed/listings.json) every time the API starts.
