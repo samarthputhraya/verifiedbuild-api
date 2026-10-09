@@ -1,0 +1,38 @@
+[
+  {
+    "id": "l-promtal-backend", "title": "HR-Tech Backend Intern", "venture": "Promtal",
+    "description": "Build APIs for candidate matching.",
+    "required_skills": {"backend": 0.6, "data": 0.2, "security": 0.2},
+    "tags": ["hrtech", "saas"]
+  },
+  {
+    "id": "l-saasum-fullstack", "title": "Full-Stack Intern", "venture": "SaaSum",
+    "description": "Build features end to end, from the React screen to the API and database behind it.",
+    "required_skills": {"backend": 0.4, "frontend": 0.4, "devops": 0.2},
+    "tags": ["saas", "web"]
+  },
+  {
+    "id": "l-maceco-data", "title": "Data Analyst Intern", "venture": "Maceco",
+    "description": "Clean messy data, write SQL, and turn the numbers into charts the team can act on.",
+    "required_skills": {"data": 0.7, "ai_ml": 0.2, "backend": 0.1},
+    "tags": ["data"]
+  },
+  {
+    "id": "l-skilltank-ai", "title": "EdTech AI Intern", "venture": "Skill Tank",
+    "description": "Build AI features that help students learn, from prompts to checking that the answers are right.",
+    "required_skills": {"ai_ml": 0.6, "backend": 0.2, "frontend": 0.2},
+    "tags": ["edtech", "ai"]
+  },
+  {
+    "id": "l-vriddhi-fintech", "title": "FinTech Data Intern", "venture": "Vriddhi",
+    "description": "Work on transaction data: pipelines, checks and reports where every number must add up.",
+    "required_skills": {"data": 0.5, "backend": 0.3, "security": 0.2},
+    "tags": ["fintech", "data"]
+  },
+  {
+    "id": "l-tobofu-growth", "title": "Growth Engineering Intern", "venture": "Tobofu",
+    "description": "Build landing pages and experiments, and the tracking that shows which ones work.",
+    "required_skills": {"frontend": 0.5, "data": 0.3, "devops": 0.2},
+    "tags": ["growth", "web"]
+  }
+]
