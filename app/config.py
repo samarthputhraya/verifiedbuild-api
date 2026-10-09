@@ -11,6 +11,7 @@ from dataclasses import dataclass
 class Settings:
     gemini_api_key: str  # set = Gemini Developer API; empty = Vertex AI with the runtime's Google identity
     gemini_model: str
+    gemini_audio_model: str  # speech to text for voice answers
     google_cloud_project: str
     google_cloud_location: str
     github_token: str
@@ -24,6 +25,7 @@ def _load() -> Settings:
     return Settings(
         gemini_api_key=os.getenv("GEMINI_API_KEY", ""),
         gemini_model=os.getenv("GEMINI_MODEL", "") or "gemini-3.8-flash",
+        gemini_audio_model=os.getenv("GEMINI_AUDIO_MODEL", "") or "gemini-3.5-flash",
         google_cloud_project=os.getenv("GOOGLE_CLOUD_PROJECT", ""),
         google_cloud_location=os.getenv("GOOGLE_CLOUD_LOCATION", "") or "global",
         github_token=os.getenv("GITHUB_TOKEN", ""),

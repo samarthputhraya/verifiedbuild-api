@@ -1,7 +1,8 @@
-"""Answer audio: base64 from the browser -> bytes Gemini accepts.
+"""Answer audio: base64 from the browser -> 16 kHz mono wav for Gemini.
 
-Gemini takes wav, mp3, aiff, aac, ogg and flac directly. Anything else (Chrome records webm,
-Safari records mp4/m4a) is converted with ffmpeg to 16 kHz mono wav.
+Browsers record different formats (Chrome webm, Safari mp4, Firefox ogg). We convert every
+recording to 16 kHz mono wav with ffmpeg (about 0.1 s). In our tests Gemini answered wav in
+5-10 s, while some other formats hung until the timeout.
 """
 
 import base64
@@ -15,14 +16,6 @@ from app.errors import ApiError
 
 log = logging.getLogger("verifiedbuild")
 
-NATIVE = {
-    "audio/wav": "audio/wav", "audio/x-wav": "audio/wav", "audio/wave": "audio/wav",
-    "audio/mp3": "audio/mp3", "audio/mpeg": "audio/mp3",
-    "audio/aiff": "audio/aiff", "audio/x-aiff": "audio/aiff",
-    "audio/aac": "audio/aac",
-    "audio/ogg": "audio/ogg", "audio/opus": "audio/ogg",
-    "audio/flac": "audio/flac", "audio/x-flac": "audio/flac",
-}
 MAX_SECONDS = 125  # 2 minutes plus a little slack
 
 
@@ -30,18 +23,15 @@ def _unreadable() -> ApiError:
     return ApiError("AUDIO_UNREADABLE", "We couldn't play that recording. Please record again, or type your answer.", 422)
 
 
-def prepare(audio_base64: str, audio_mime: str | None) -> tuple[bytes, str]:
-    """Returns (audio bytes, mime type) ready to send to Gemini."""
+def prepare(audio_base64: str) -> bytes:
+    """Returns wav bytes ready to send to Gemini."""
     try:
         data = base64.b64decode(audio_base64.split(",", 1)[-1], validate=False)
     except (binascii.Error, ValueError):
         raise _unreadable()
     if len(data) < 1000:  # a few hundred bytes is a header with no sound
         raise _unreadable()
-    mime = (audio_mime or "").split(";")[0].strip().lower()
-    if mime in NATIVE:
-        return data, NATIVE[mime]
-    return _to_wav(data), "audio/wav"
+    return _to_wav(data)
 
 
 def _to_wav(data: bytes) -> bytes:
