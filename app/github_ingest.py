@@ -119,6 +119,8 @@ SOURCE_EXTS = {
 LOW_VALUE_EXTS = {".html", ".css", ".scss", ".yml", ".yaml", ".sh", ".sql", ".tf"}
 BOILERPLATE_STEMS = {"setuptests", "reportwebvitals", "serviceworker", "manage", "wsgi", "asgi", "vite-env.d", "next-env.d"}
 ENTRY_STEMS = {"main", "app", "server", "index", "api", "routes"}
+# Imported everywhere, but mostly declarations: poor material for "why" questions
+DECLARATION_STEMS = {"types", "type", "interfaces", "constants", "consts", "theme", "config", "settings", "styles"}
 SKIP_NAME_RE = re.compile(
     r"(\.min\.|\.bundle\.|\.d\.ts$|_pb2\.py$|\.pb\.go$|\.g\.dart$|\.freezed\.dart$|\.generated\.|"
     r"\.config\.(js|ts|mjs|cjs)$|^(jquery|bootstrap|chart|d3|three|lodash|popper|moment)[.-])"
@@ -282,6 +284,11 @@ def select_files(files: dict[str, str]) -> tuple[str, dict[str, str]]:
             weight *= 0.5
         if stem in ENTRY_STEMS:
             weight *= 1.5
+        if stem in DECLARATION_STEMS:
+            weight *= 0.3
+        code_lines = [line for line in text.split("\n") if line.strip()]
+        if sum(1 for line in code_lines if IMPORT_LINE_RE.search(line)) > 0.5 * len(code_lines):
+            weight *= 0.2  # a file that mostly re-exports other files
         scores[path] = (1 + refs) * math.log2(1 + min(lines, 600)) * weight
 
     chosen: dict[str, str] = {}
