@@ -60,17 +60,13 @@ From our own test runs on real repos (`samarthputhraya/Modelpin`, `samarthputhra
 
 ## Web pages
 
-`web/` holds the landing page, the student app (`web/app/`) and the recruiter dashboard (`web/recruiter/`), with shared rendering in `web/common.js`. Plain HTML, CSS and JavaScript with no build step, served by the API itself (`app/main.py`), so every call is same-origin. Voice answers use the browser's MediaRecorder (webm or mp4), and the API converts and transcribes them.
-- **Design: skills, run like a build.** A student's skill lives in their code, so the product looks like the place code gets checked: a CI run. Built by hand in `web/styles.css` and `web/common.js` (no framework), light and dark.
-  - Reading a repo is a run with stages (`pipeline()`), and the 5 questions are 5 tests in the viva bar.
-  - Each question is a review comment on the student's own file, and a follow-up is a reply in the same thread.
-  - Verified skills come out as build badges (`backend | 87 strong`), and claimed vs verified is a diff from the resume to the viva.
-  - Each match shows its formula as one bar: verified skills, shared interests and verified hackathons (`matchBreakdown()`).
-  - The record is signed with a seal drawn from the student's own scores (`seal()`), so no two look the same; its foil follows the phone's tilt or the mouse.
+`web/` holds the landing page, the student app (`web/app/`) and the recruiter dashboard (`web/recruiter/`). Both apps are React-style components (hooks, controlled inputs) on Preact with `htm`, loaded as ES modules with no build step, so one `gcloud run deploy` ships the API and the pages together. Served by the API itself (`app/main.py`), so every call is same-origin. Voice answers use the browser's MediaRecorder (webm or mp4), and the API converts and transcribes them.
+- `web/ui.js`: the shared component library (buttons, fields, chips, tags, lists, skeletons, toasts, dialogs, the code viewer, the report pieces) and the API client.
+- `web/styles.css`: one typeface, a neutral palette with one blue, an 8 px grid, borders instead of shadows, light and dark. Motion only where it shows a change.
+- Every screen has a loading state (skeletons), an empty state and an error state with a retry. Errors are the API's own plain-English messages.
 - The student app installs to a phone's home screen (`web/app/manifest.webmanifest`) and opens full screen.
-- Text from the API is always inserted as text, never as HTML. The Content-Security-Policy allows only the site's own files, plus GitHub profile pictures.
-- Fonts are Bricolage Grotesque and JetBrains Mono (SIL Open Font License), and the icons are Material Symbols (Apache 2.0).
-  - Licences are in `web/fonts/`. All three are served from the same site, so venue Wi-Fi can't break them.
+- Text from the API is always rendered as text, never as HTML. The Content-Security-Policy allows only the site's own files, plus GitHub profile pictures.
+- Fonts are Inter and JetBrains Mono (SIL Open Font License, licences in `web/fonts/`), icons are from Lucide (ISC), and the runtime is Preact + htm (MIT and Apache 2.0, in `web/vendor/`). Everything is served from the same site, so venue Wi-Fi can't break it.
 
 ## Run locally
 
