@@ -1,4 +1,4 @@
-# Handoff - 2026-10-10 18:05 IST, written by Claude session
+# Handoff - 2026-10-10 23:55 IST, written by Claude session
 
 ## Goal (one line)
 VerifiedBuild: 5-question viva on a student's own repo → verified skill profile → internship match → recruiter shortlist.
@@ -31,13 +31,19 @@ Phone 1: sign up → pick repo → analyze (~15 s) → answer question 1 by voic
 - **Local, recruiter dashboard:**
   - Sign-in and wrong passcode, listings, live arrival highlight, candidate report with code beside each answer.
   - CSV with `verified_hackathons`, mobile and dark mode.
-- Supabase holds no test data: every table is at 0 rows except the 6 listings (row counts checked).
+- SAM's own runs on prod in the new design (18:06): resume sign-up, analyze, 10 answers including voice, done; both reports read back with 200 at 23:45.
+- Supabase holds no test data: SAM's 2 test profiles were deleted at 23:50, and every table is at 0 rows except the 6 listings (row counts checked).
+- Not yet clicked through on prod in the new design: apply on a phone → the student appears on `/recruiter/`. Verified locally, and the API part on prod at 16:14.
 
 ## Broken / in progress
 - Nothing known broken.
 - Gemini's speed varies. On prod we saw analyze take 12 s and 30 s for the same repo, and one scoring took 19 s locally. Hence the 40 s / 25 s fallback rule in `docs/pitch.md`.
 - Unverified: `scripts/stats.py` numbers on real volunteers. Only 2 test vivas so far, at a median of $0.039 per viva, priced with third-party token rates.
-- Android app (Ayush, `trulyayush/KITSW`, last push 12:39): it still calls Gemini and GitHub directly from the phone, with an API key built into the app, and shows a hard-coded line "No suspicious anomalies detected". The web app is now the main product. Ayush's API prompts are in `docs/ai-studio-android-prompts.md`; the theme prompt (`docs/android-theme-prompt.md`) comes only after those, and only if done by 23:00. Stage 3 needs v1.1, which is live.
+- Android app (Ayush, `trulyayush/KITSW`): still at the 12:39 push at 23:45, so the 23:00 cut-off passed and it is out of the demo.
+  - It never calls our API. It calls Gemini (key built into the app) and GitHub itself.
+  - Without Gemini it falls back to template questions and a score from answer length, with fixed praise text.
+  - Its sample data includes a recruiter named "Google Cloud", and one commit added 10,843 lines.
+  - The web app is the product.
 
 ## Next 3 steps (concrete, in order)
 1. Pick the persona and fill every `[bracket]` in `docs/pitch.md` with real facts.
@@ -47,7 +53,7 @@ Phone 1: sign up → pick repo → analyze (~15 s) → answer question 1 by voic
 2. Volunteers tonight, following `docs/volunteers.md` (5 built + 5 not built).
    - Put their repos in `seed/labelled_set.json`, then run `python -m scripts.stats --labels seed/labelled_set.json`.
    - Copy the numbers into pitch section 6.
-3. Ayush finishes the Android stages. Then 3 timed rehearsals, including one fallback to the video.
+3. 2–3 volunteers apply to Promtal so the dashboard isn't empty. Then 3 timed rehearsals, including one fallback to the video.
 
 ## Decisions made (and why, one line each)
 - Gemini on Vertex as the Cloud Run identity: the Developer API key returned 402 (no prepaid credits).
