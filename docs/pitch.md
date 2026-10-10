@@ -31,12 +31,12 @@ Use the student whose story is clearest. If a founder or recruiter at the event 
 | 0:30–0:50 | SAM | "Today recruiters filter on resume keywords, CGPA and GitHub stars. A hackathon win on a resume is taken on trust, and in a team of four nobody can tell who built what. Coding tests are generic, and AI can solve those too. None of it asks: do you understand the code you're showing me? VerifiedBuild does, in five minutes." |
 | 0:50–2:00 | Ayush | The demo path below. Say out loud what the judge should notice. |
 | 2:00–2:30 | SAM | "The hard part is making the questions about real code and the scoring fair. Every question points at real lines in the student's repo: we check the lines exist and cut the snippet from the file ourselves. The answer is scored against a rubric that never leaves our server. Spoken and typed answers go through the same scoring step, and the language doesn't matter: a Hinglish answer scored the same 10/10 as English. The match score itself uses no AI. It's a formula we can show you, and claimed skills count for zero." |
-| 2:30–3:00 | SAM | "[Who pays, from section 7.] Next we'd [one thing from the 30-day answer]. [Name] now has a profile that says: backend, verified, 81, with [Name]'s own words as evidence. That's what gets [Name] the reply." |
+| 2:30–3:00 | SAM | "[Who pays, from section 5.] Next we'd [one thing from the 30-day answer]. [Name] now has a profile that says: [skill], verified, [score], with [Name]'s own words as evidence. That's what gets [Name] the reply." |
 
 ## 3. Demo path (Ayush drives, about 70 seconds)
 
 Prepare before going on stage:
-- **Phone 1 (mirrored to the projector):** the VerifiedBuild app on a fresh install, with a second student's details typed into sign-up but not submitted. That student's repo must be public.
+- **Phone 1 (mirrored to the projector):** the VerifiedBuild app on a fresh install, with a second student's details typed into sign-up but not submitted. That student's repo must be public. If the Android build isn't ready, use the student web app (`/app/`) in a private browser tab: it has the same flow.
 - **Phone 2, or Phone 1 after the live part:** signed in as [Name], with a finished viva and a verified hackathon, and **not yet applied to Promtal**.
 - **Laptop:** the recruiter dashboard at `https://verifiedbuild-api-215071922486.asia-south1.run.app/recruiter/`, signed in and open on the Promtal shortlist, with 2–3 volunteers who already applied.
 - The backup video, ready to play.
@@ -46,7 +46,7 @@ Prepare before going on stage:
 | 1 | Phone 1: submit sign-up, then pick [repo] in the repo list | "Let's verify someone live. They sign up and pick their own project." |
 | 2 | Start the viva. During the ~15 s wait, narrate. On "We read …", point at it | "It's reading the repo now: it drops libraries and generated code and keeps the files that matter. ... It read [N] files and found [skill]: here's the sentence of evidence, naming the file." |
 | 3 | "Start question 1", then answer it by voice, live (one sentence in Hinglish is fine) | "The question names a real function, and the code is lines [x–y] of their actual file. They answer out loud, in whatever language they think in. No score yet, on purpose." |
-| 4 | Phone 2: [Name]'s report | "Here's [Name]'s finished viva from this morning. They claimed React, and the repo didn't show it, so it says not shown. They didn't claim security, but they showed it. Every score has their own words as evidence." |
+| 4 | Phone 2: [Name]'s report | "Here's [Name]'s finished viva from this morning. They claimed [skill], and the viva didn't show it, so it says not shown. They didn't claim [skill], but they showed it. Every score has their own words as evidence." |
 | 5 | Scroll to hackathons | "[Name] listed [hackathon]. It shows as verified because the viva was on that team repo, and the questions were about the files [Name] committed, not the teammates' code." |
 | 6 | Scroll to matches | "Matches use verified skills and verified hackathons only. [Top match] is [N]%, and the line under it says why in plain numbers." |
 | 7 | Phone 2: Apply to Promtal, tick consent | "[Name] applies, and agrees to share the report with this one company." |
@@ -115,7 +115,7 @@ Before the final, get the volunteer numbers with [docs/volunteers.md](volunteers
 | Students verified tonight | [N], median score [N] |
 | Claimed a skill, then couldn't show it | [N]% |
 | Showed a skill they didn't claim | [N]% |
-| AI cost per viva | [₹ / $ from `scripts.stats`] |
+| AI cost per viva | [from `scripts.stats`. Our 2 test vivas had a median of $0.039 at $0.75 / $3.75 per 1M tokens, a third-party price; check Google's Vertex rate card first] |
 
 ## 7. Delivery notes
 

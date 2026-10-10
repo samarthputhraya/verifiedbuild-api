@@ -170,7 +170,7 @@ interest_overlap = |interests ∩ tags| / |interests ∪ tags|              # Ja
 hackathon        = best verified entry: viva_score / 100 × result weight (winner 1.0, finalist 0.8, participant 0.6)
 match            = round(100 × (0.6 × skill_fit + 0.25 × interest_overlap + 0.15 × hackathon))
 ```
-- `why` is a template built from the numbers, e.g. `"Verified backend 81 covers 60% of this role; shared interests: saas."`
+- `why` is a template built from the numbers, e.g. `"Verified backend 81 covers 60% of this role; shared interests: SaaS."`
 - Claimed-only skills and unverified hackathons never count toward a match. Only verified ones do. That is the product.
 - A hackathon entry is verified when the student finishes a viva on its repo. On a team repo (someone else owns it, or more than one author), the questions are about the files the student changed, taken from their own commits.
 

@@ -12,6 +12,10 @@ Claimed skills and claimed hackathons count for nothing until a viva verifies th
 SKILL_W, INTEREST_W, HACKATHON_W = 0.6, 0.25, 0.15
 RESULT_WEIGHT = {"winner": 1.0, "finalist": 0.8, "participant": 0.6}
 RESULT_LABEL = {"winner": "Winner", "finalist": "Finalist", "participant": "Participant"}
+# How tags and interests read inside the `why` sentence
+SKILL_NAME = {"backend": "backend", "frontend": "frontend", "data": "data", "ai_ml": "AI/ML", "devops": "DevOps", "security": "security"}
+INTEREST_NAME = {"ai": "AI", "data": "data", "web": "web", "mobile": "mobile", "saas": "SaaS", "fintech": "FinTech", "edtech": "EdTech",
+                 "hrtech": "HR-Tech", "security": "security", "devtools": "dev tools", "growth": "growth", "healthcare": "healthcare"}
 
 
 def round_half_up(x: float) -> int:
@@ -51,11 +55,11 @@ def _why(skills, weights, total_w, shared, h_entry) -> str:
     contributions = [(w * skills.get(tag, 0), tag) for tag, w in weights.items() if skills.get(tag, 0) > 0]
     if contributions:
         _, tag = max(contributions)
-        parts = [f"Verified {tag} {skills[tag]} covers {round_half_up(100 * weights[tag] / total_w)}% of this role"]
+        parts = [f"Verified {SKILL_NAME.get(tag, tag)} {skills[tag]} covers {round_half_up(100 * weights[tag] / total_w)}% of this role"]
     else:
-        needs = ", ".join(f"{tag} {round_half_up(100 * w / total_w)}%" for tag, w in sorted(weights.items(), key=lambda kv: -kv[1]))
+        needs = ", ".join(f"{SKILL_NAME.get(tag, tag)} {round_half_up(100 * w / total_w)}%" for tag, w in sorted(weights.items(), key=lambda kv: -kv[1]))
         parts = [f"No verified skills for this role yet (it needs {needs})"]
-    parts.append(f"shared interests: {', '.join(shared)}" if shared else "no shared interests")
+    parts.append(f"shared interests: {', '.join(INTEREST_NAME.get(i, i) for i in shared)}" if shared else "no shared interests")
     if h_entry:
         parts.append(f"verified hackathon: {RESULT_LABEL[h_entry['result']]} at {h_entry['event']} {h_entry['year']} (viva {h_entry['viva_score']})")
     return "; ".join(parts) + "."

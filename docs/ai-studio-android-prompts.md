@@ -1598,6 +1598,7 @@ If report.status == "done", show these sections in order:
      if more than 100: "{commits} commits in total. The last 100 span {spanDays} days, active on {activeDays} days" (the API measures days and authors over the last 100 commits only)
    - "{authors} author(s) · {round(yourCommitShare * 100)}% of those commits by you"
    - "Median {medianLinesPerCommit} lines changed per commit"
+   - Use the singular for 1 ("1 commit over 1 day", "1 author", "1 line"), and leave out "active on …" when spanDays is 1.
    - Caption: "Facts from GitHub. They don't change your score."
 
 8. "Internships matched on what you showed": one card per report.matches item, in order:

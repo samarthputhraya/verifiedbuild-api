@@ -295,7 +295,7 @@ Response `200`:
       "title": "HR-Tech Backend Intern",
       "venture": "Promtal",
       "match": 53,
-      "why": "Verified backend 81 covers 60% of this role; shared interests: saas; verified hackathon: Finalist at HackX 2026 (viva 72).",
+      "why": "Verified backend 81 covers 60% of this role; shared interests: SaaS; verified hackathon: Finalist at HackX 2026 (viva 72).",
       "applied": false
     }
   ]

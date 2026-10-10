@@ -418,7 +418,7 @@ const viva = {
     s.loading = true; s.error = null; s.failed = null;
     try {
       const r = await api(`/api/viva/${enc(s.sessionId)}/answer`, { method: "POST", body });
-      s.lastTranscript = r.transcript;
+      s.lastTranscript = body.mode === "voice" ? r.transcript : null; // typed answers need no echo
       if (r.follow_up) {
         s.followUp = r.follow_up;
       } else {

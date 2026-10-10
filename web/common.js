@@ -165,14 +165,18 @@ const VB = (() => {
         h("div", { class: "row-gap small" }, facts)));
   }
 
+  const count = (n, one, many) => `${n} ${n === 1 ? one : many || `${one}s`}`;
+
   function buildHistoryFacts(bh, who) {
     const w = words(who);
+    const days = count(bh.span_days, "day");
+    const active = bh.span_days > 1 ? `, with commits on ${bh.active_days} of them.` : ".";
     return h("div", { class: "facts-list" },
       h("p", {}, bh.commits > 100
-        ? `${bh.commits} commits in total. The last 100 span ${bh.span_days} days, with commits on ${bh.active_days} of them.`
-        : `${bh.commits} commits over ${bh.span_days} days, with commits on ${bh.active_days} of them.`),
-      h("p", {}, `${bh.authors} ${bh.authors === 1 ? "author" : "authors"} in ${bh.commits > 100 ? "the last 100 commits" : "the history"}, ${pct(bh.your_commit_share)} of those commits ${w.by}.`),
-      h("p", {}, `Median ${bh.median_lines_per_commit} lines changed per commit.`));
+        ? `${bh.commits} commits in total. The last 100 span ${days}${active}`
+        : `${count(bh.commits, "commit")} over ${days}${active}`),
+      h("p", {}, `${count(bh.authors, "author")} in ${bh.commits > 100 ? "the last 100 commits" : "the history"}, ${pct(bh.your_commit_share)} of those commits ${w.by}.`),
+      h("p", {}, `Median ${count(bh.median_lines_per_commit, "line")} changed per commit.`));
   }
 
   function store(storage) {

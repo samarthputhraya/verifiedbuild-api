@@ -18,7 +18,7 @@ def test_match_reproduces_the_contract_example():
     # match = round(100 * (.6*.596 + .25*.3333 + .15*.576)) = round(52.73) = 53
     h = matching.hackathon_signal([ASHA_HACKATHON])
     s = matching.score({"backend": 81, "frontend": 60, "data": 55}, ["saas", "data"], PROMTAL, h)
-    assert s == {"match": 53, "why": "Verified backend 81 covers 60% of this role; shared interests: saas; "
+    assert s == {"match": 53, "why": "Verified backend 81 covers 60% of this role; shared interests: SaaS; "
                                      "verified hackathon: Finalist at HackX 2026 (viva 72)."}
 
 
@@ -29,6 +29,14 @@ def test_claimed_hackathons_and_skills_count_for_nothing():
     assert s["match"] == 44 and "hackathon" not in s["why"]  # round(100 * (.6*.596 + .25*.3333)) = 44
     assert matching.score({}, [], PROMTAL)["match"] == 0
     assert matching.score({}, [], PROMTAL)["why"].startswith("No verified skills for this role yet")
+
+
+def test_why_uses_readable_names():
+    edtech = {"required_skills": {"ai_ml": 0.6, "frontend": 0.2, "devops": 0.2}, "tags": ["ai", "edtech", "hrtech"]}
+    s = matching.score({"ai_ml": 100}, ["ai", "hrtech"], edtech)
+    assert s["why"] == "Verified AI/ML 100 covers 60% of this role; shared interests: AI, HR-Tech."
+    assert matching.score({}, [], edtech)["why"] == ("No verified skills for this role yet "
+                                                      "(it needs AI/ML 60%, frontend 20%, DevOps 20%); no shared interests.")
 
 
 def test_best_verified_hackathon_wins():

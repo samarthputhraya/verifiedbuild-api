@@ -193,5 +193,18 @@ app.include_router(admin)
 # The recruiter dashboard and the landing page (web/). Mounted last, so every /api route wins.
 mimetypes.add_type("font/woff2", ".woff2")  # the slim Python image doesn't know this one
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+
+
+class WebFiles(StaticFiles):
+    """Browsers revalidate pages and scripts on every load (a cheap 304), so a phone that opened the app
+    before a deploy never runs old app.js against a new common.js. Fonts never change, so they are cached."""
+
+    def file_response(self, full_path, stat_result, scope, status_code=200):
+        response = super().file_response(full_path, stat_result, scope, status_code)
+        is_font = str(full_path).endswith(".woff2")
+        response.headers["Cache-Control"] = "public, max-age=604800" if is_font else "no-cache"
+        return response
+
+
 if WEB_DIR.is_dir():
-    app.mount("/", StaticFiles(directory=WEB_DIR, html=True), name="web")
+    app.mount("/", WebFiles(directory=WEB_DIR, html=True), name="web")
