@@ -35,7 +35,7 @@ Your app keeps its screens and its look. What changes:
 
 Each stage leaves the app building and working, so if time runs out you can stop after any stage and still demo.
 
-Stages 1 and 2 are the same as in the first version of this file (only the stage numbers changed). If you've already done them, carry on with Stage 3.
+Stages 1 and 2 are the same as in the first version of this file; only the stage numbers and the recruiter-dashboard link changed, and Stage 7 sets the link if you already ran Stage 1. If you've already done them, carry on with Stage 3.
 
 ### How to run the prompts
 
@@ -434,8 +434,8 @@ object ApiConfig {
     // The live VerifiedBuild API. Must end with "/".
     const val API_BASE = "https://verifiedbuild-api-215071922486.asia-south1.run.app/"
 
-    // The recruiter web dashboard. Leave empty until SAM sends the link; empty hides the link in the app.
-    const val RECRUITER_WEB_URL = ""
+    // The recruiter web dashboard. Empty would hide the link in the app.
+    const val RECRUITER_WEB_URL = "https://verifiedbuild-api-215071922486.asia-south1.run.app/recruiter/"
 }
 
 // The result of every API call. The UI shows `message` exactly as given: the API writes it in plain English.
@@ -1594,8 +1594,9 @@ If report.status == "done", show these sections in order:
    - a footer of plain facts, all in the same neutral grey: a Mic icon with "Spoken" or a Keyboard icon with "Typed"; "{durationS}s" if not null; "Follow-up asked" if hadFollowUp; "Text was pasted" if pasted.
 
 7. "How the repo was built (from GitHub)": only if buildHistory != null.
-   - "{commits} commits over {spanDays} days, active on {activeDays} days"
-   - "{authors} author(s) · {round(yourCommitShare * 100)}% of commits by you"
+   - if commits is 100 or less: "{commits} commits over {spanDays} days, active on {activeDays} days";
+     if more than 100: "{commits} commits in total. The last 100 span {spanDays} days, active on {activeDays} days" (the API measures days and authors over the last 100 commits only)
+   - "{authors} author(s) · {round(yourCommitShare * 100)}% of those commits by you"
    - "Median {medianLinesPerCommit} lines changed per commit"
    - Caption: "Facts from GitHub. They don't change your score."
 
@@ -1741,6 +1742,11 @@ PART 3: States and back behaviour
   - Viva shows the Leave dialog.
   - VivaComplete and Report go to Dashboard.
 
+PART 3b: Recruiter link (an allowed exception to rule 6)
+In app/src/main/java/com/example/data/api/ApiClient.kt, make sure the RECRUITER_WEB_URL line reads exactly:
+    const val RECRUITER_WEB_URL = "https://verifiedbuild-api-215071922486.asia-south1.run.app/recruiter/"
+Change nothing else in that file. If the line is already correct, leave it. The Welcome screen then shows "Hiring? Open the recruiter dashboard".
+
 PART 4: Feel
 - Haptics: LocalHapticFeedback.current.performHapticFeedback(HapticFeedbackType.LongPress) when recording starts, when it stops, and when "Answer saved" appears.
 - Transitions: a short fade (about 200 ms) when the viva moves to the next question or a follow-up appears. Use AnimatedContent keyed by questionId + followUp.
@@ -1821,6 +1827,7 @@ Use your own GitHub username, and one of your public repos with real code.
 - [ ] The full journey from a fresh install (uninstall first).
 - [ ] At the largest system font nothing is cut off.
 - [ ] You feel a small vibration when recording starts and stops.
+- [ ] Welcome shows "Hiring? Open the recruiter dashboard", and it opens the dashboard in the browser.
 
 ---
 
