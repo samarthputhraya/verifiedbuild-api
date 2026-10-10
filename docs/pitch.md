@@ -45,17 +45,17 @@ Prepare before going on stage:
 | Step | Click | Say |
 |---|---|---|
 | 1 | Phone 1: submit sign-up, then pick [repo] in the repo list | "Let's verify someone live. They sign up and pick their own project." |
-| 2 | Start the viva. During the wait (usually ~15 s, sometimes up to 30 s), narrate over the run card. When its stages tick, point at them, then at "We read …" | "We treat skills like code: this is a build run on their repo. It drops libraries and generated code and keeps the files that matter. ... Each stage ticks off with what it found: [N] files kept, [skill] found, 5 questions written. Here's the sentence of evidence, naming the file." |
-| 3 | "Start question 1", then answer it by voice, live (one sentence in Hinglish is fine) | "The 5 questions are the tests. Each one is a review comment on lines [x–y] of their actual file. They answer out loud, in whatever language they think in. No score yet, on purpose." |
-| 4 | Phone 2: [Name]'s report. Tilt the phone slowly at the seal | "Here's [Name]'s finished viva from this morning. Each verified skill comes out as a build badge. The seal is drawn from their own scores, so no two students' look the same. This is a diff from resume to viva: they claimed [skill] and the viva didn't show it; they didn't claim [skill], but showed it. Every score has their own words as evidence." |
+| 2 | Start the viva. During the wait (usually ~15 s, sometimes up to 30 s), narrate over the checklist. On "We read …", point at it | "It's reading the repo now: it drops libraries and generated code and keeps the files that matter. ... It read [N] files and found [skill]: here's the sentence of evidence, naming the file." |
+| 3 | "Start question 1", then answer it by voice, live (one sentence in Hinglish is fine) | "The question names a real function, and the code is lines [x–y] of their actual file. They answer out loud, in whatever language they think in. No score yet, on purpose." |
+| 4 | Phone 2: [Name]'s report | "Here's [Name]'s finished viva from this morning. Six skills, each with a score and a level. They claimed [skill], and the viva didn't show it, so it says not shown. They didn't claim [skill], but they showed it. Every score has their own words as evidence." |
 | 5 | Scroll to hackathons | "[Name] listed [hackathon]. It shows as verified because the viva was on that team repo, and the questions were about the files [Name] committed, not the teammates' code." |
-| 6 | Scroll to matches | "This is the problem statement in one bar: skills, interests and hackathon performance. [Top match] is [N]%, and the bar splits it into those three parts. Only verified skills and verified hackathons count." |
+| 6 | Scroll to matches | "Matches use verified skills, shared interests and verified hackathons only. [Top match] is [N]%, and the line under it says why in plain numbers." |
 | 7 | Phone 2: Apply to Promtal, tick consent | "[Name] applies, and agrees to share the report with this one company." |
 | 8 | Laptop: the Promtal shortlist, nobody touches it | "Watch the recruiter's screen." Within 5 seconds [Name] lands in the ranked list, highlighted. "Ranked by verified match. Click in, and every answer sits next to the exact code it was about. One click exports a CSV." |
 
-**Notice for the judges:** the build run with real numbers (step 2), questions as review comments on real lines, in any language (step 3), badges, the seal and the resume-to-viva diff (step 4), verified hackathon on a team repo (step 5), the match split into skills, interests and hackathons (step 6), and the phone-to-laptop moment (step 8).
+**Notice for the judges:** real line numbers (step 2), the language doesn't matter (step 3), claimed vs verified (step 4), verified hackathon on a team repo (step 5), the reason under each match (step 6), and the phone-to-laptop moment (step 8).
 
-**If asked about the design:** "At ARGONYX '26 we won best UI/UX by designing from where the problem lives: a teacher's notebook. A student's skill lives in their code, so VerifiedBuild looks like the place code gets checked: a build run, tests, badges and a diff."
+**If asked about the design:** "It's built like a product students and recruiters would use every day: one typeface, one colour, nothing decorative. Every screen has a loading, empty and error state, it works on a cheap phone and a projector, and it's installable from the browser."
 
 Optional, if SAM is confident: run step 2 on our own repo, `verifiedbuild-api`, and let SAM answer one question about `app/matching.py` live. It shows the product checking its own builder. Only do it after SAM has done a full practice viva on it.
 

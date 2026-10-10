@@ -1,4 +1,4 @@
-# Handoff - 2026-10-11 02:00 IST, written by Claude session
+# Handoff - 2026-10-11 03:45 IST, written by Claude session
 
 ## Goal (one line)
 VerifiedBuild: 5-question viva on a student's own repo → verified skill profile → internship match → recruiter shortlist.
@@ -7,9 +7,9 @@ VerifiedBuild: 5-question viva on a student's own repo → verified skill profil
 Phone 1: sign up → pick repo → analyze (~15 s) → answer question 1 by voice. Phone 2: a finished report (claimed vs verified, evidence, verified hackathon, matches) → apply with consent. Laptop: the Promtal shortlist on `/recruiter/`, where the student appears within 5 s. Script and lines: `docs/pitch.md`.
 
 ## Works now (verified, with how it was verified)
-- Live on Cloud Run, revision 00013 (Supabase + Vertex AI). `/api/health` returns `v1.1`. 00011 is the last Material 3 version if a rollback is ever needed.
-- **New web design, "skills, run like a build" (11 Oct, 02:00):** reading a repo is a CI run, the 5 questions are tests, skills come out as build badges, matches show their formula, and records carry a seal drawn from the student's scores.
-  - Verified locally with real GitHub and Gemini: sign-up, the run card while analyzing, the viva as a review thread with a follow-up reply, done screen, report, apply stamp, recruiter list-detail with badges and the match breakdown, dark mode, phone and desktop with no sideways scroll.
+- Live on Cloud Run, revision 00014 (Supabase + Vertex AI). `/api/health` returns `v1.1`. Earlier looks, if ever needed: 00011 (Material 3), 00013 (build run).
+- **Web rebuilt as a plain product UI on React-style components (11 Oct, 03:40):** Preact + htm as ES modules (no build step), Inter, one blue, borders not shadows, skeleton/empty/error states, light and dark. SAM asked for a professional, Fortune-500-style product look and nothing decorative, after rejecting the Material 3, seal and build-run designs.
+  - Verified locally with real GitHub and Gemini: 4-step sign-up with the live GitHub check, home, repo list, analyzing checklist, what we found, the viva with a typed answer, a follow-up, 9 answers to done, the report, apply with the consent box, a spoken answer through the real recorder (bars moved, transcript came back), the recruiter listings, shortlist with the detail pane, candidate page, phone and desktop widths with no sideways scroll, dark mode. Zero console errors throughout.
 - **Earlier Material 3 version (18:00), the same flows:**
   - Verified locally in a browser: the full student flow (4-step sign-up, live GitHub check, the letter PDF gives the right message, analyze, typed answers, follow-up, a spoken answer through the real recorder, done, report, apply with consent).
   - Also checked locally: phone and desktop layouts, dark mode, and recruiter list-detail with a second applicant arriving live.
@@ -64,7 +64,7 @@ Phone 1: sign up → pick repo → analyze (~15 s) → answer question 1 by voic
 - The student web app exists so judges can try it from a QR code (`docs/qr-student-app.svg`), and as a fallback if the Android build isn't ready.
 - Hackathons count only after a viva on their repo. On team repos, questions cover the files the student changed.
 - Match = 60% verified skills + 25% interests + 15% best verified hackathon. No AI in the formula.
-- Design (11 Oct, 02:00): "skills, run like a build", designed from where the skill lives (the code), as Guru-Graph was from the notebook. Run stages, tests, build badges, resume-to-viva diff, match breakdown, and a seal drawn from the student's scores. Bricolage Grotesque + JetBrains Mono. Material 3 dropped.
+- Design (11 Oct, 03:40): a plain, professional product UI, like a Fortune-500 product page, with no theme or decoration (SAM's call after three themed designs). React-style components on Preact + htm with no build step, so one deploy ships API and pages and nothing can break at 4 AM.
 - Web files are sent with `Cache-Control: no-cache`, so phones never mix old and new JS after a deploy.
 - Slow Gemini calls are hedged: the same request is sent again after 6 s (transcription), 8 s (scoring) or 25 s (questions), and the first answer wins.
 - Pitch claims use today's measurements: each of 6 test answers was scored 5 times and never moved by more than 1 point.
