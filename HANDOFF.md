@@ -1,4 +1,4 @@
-# Handoff - 2026-10-10 16:30 IST, written by Claude session
+# Handoff - 2026-10-10 16:50 IST, written by Claude session
 
 ## Goal (one line)
 VerifiedBuild: 5-question viva on a student's own repo → verified skill profile → internship match → recruiter shortlist.
@@ -7,17 +7,18 @@ VerifiedBuild: 5-question viva on a student's own repo → verified skill profil
 Phone 1: sign up → pick repo → analyze (~15 s) → answer question 1 by voice. Phone 2: a finished report (claimed vs verified, evidence, verified hackathon, matches) → apply with consent. Laptop: the Promtal shortlist on `/recruiter/`, where the student appears within 5 s. Script and lines: `docs/pitch.md`.
 
 ## Works now (verified, with how it was verified)
-- Live on Cloud Run, revision 00008 (Supabase + Vertex AI). `/api/health` returns `v1.1`.
+- Live on Cloud Run, revision 00009 (Supabase + Vertex AI). `/api/health` returns `v1.1`.
   - Pages: `/` (landing), `/app/` (student web app), `/recruiter/` (dashboard, needs ADMIN_KEY), `/docs`.
   - All return 200 (curl), and API 404s are JSON.
-- `python -m pytest`: 17 pass. They cover the full flow, hackathons, team repos, multi-viva reports, voice, errors, web pages and cache headers.
+- `python -m pytest`: 18 pass. They cover the full flow, hackathons, team repos, multi-viva reports, voice, errors, web pages, cache headers and hedged Gemini calls.
 - **Prod, through the student web app (16:14 IST):**
   - Sign-up → kavach analyzed (6 files, 4 skills found) → 5 typed answers.
   - A vague answer got a follow-up. A Hinglish answer scored 10/10.
   - The report, matches (EdTech AI 60%, Promtal 45%) and build history were all correct. No console errors.
   - Then, by script against prod (`X-Admin-Key` read from `.env`): apply without consent → refused; with consent → 201.
   - The student appeared on the Promtal shortlist and in the CSV, and a wrong admin key got 401.
-  - Spoken answers last ran on prod at 06:30 (v1). Since then they were tested locally only (below).
+- **Prod, full spoken viva by script (16:46 IST, revision 00009):** analyze took 14.0 s, then 10 voice answers (5 questions plus 5 follow-ups).
+  - Median 5.2 s per answer, slowest 9.4 s. The report finished, and the test data was deleted afterwards.
 - **Prod, Android:** the Kotlin harness (`clients/android/harness`) passed against v1.1.
 - **Local, student web app:**
   - Full flow including a spoken answer: MediaRecorder with a fake mic fed TTS audio, transcribed correctly.
@@ -30,6 +31,7 @@ Phone 1: sign up → pick repo → analyze (~15 s) → answer question 1 by voic
 
 ## Broken / in progress
 - Nothing known broken.
+- Gemini's speed varies. On prod we saw analyze take 12 s and 30 s for the same repo, and one scoring took 19 s locally. Hence the 40 s / 25 s fallback rule in `docs/pitch.md`.
 - Unverified: `scripts/stats.py` numbers on real volunteers. Only 2 test vivas so far, at a median of $0.039 per viva, priced with third-party token rates.
 - Android app (Ayush, `verifiedbuild-app`): status unknown here. The prompts are `docs/ai-studio-android-prompts.md`, stages 1–7; stage 3 needs v1.1, which is live.
 
@@ -51,6 +53,9 @@ Phone 1: sign up → pick repo → analyze (~15 s) → answer question 1 by voic
 - Hackathons count only after a viva on their repo. On team repos, questions cover the files the student changed.
 - Match = 60% verified skills + 25% interests + 15% best verified hackathon. No AI in the formula.
 - Web files are sent with `Cache-Control: no-cache`, so phones never mix old and new JS after a deploy.
+- Slow Gemini calls are hedged: the same request is sent again after 6 s (transcription), 8 s (scoring) or 25 s (questions), and the first answer wins.
+- Pitch claims use today's measurements: each of 6 test answers was scored 5 times and never moved by more than 1 point.
+  - Typed Hinglish, romanised Hindi and Telugu-English answers scored 9–10. Spoken non-English answers are untested.
 
 ## Gotchas
 - `ADMIN_KEY` is in `.env`. Share it with Ayush privately, never in the repo or chat logs.
