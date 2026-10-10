@@ -19,7 +19,7 @@ We don't try to tell who wrote the code, and using AI to build is fine. We measu
 ## How it works
 
 1. **Sign up.** We check the GitHub username exists. Claimed skills come from the resume PDF (Gemini reads it) or from skill chips.
-2. **Pick a repo.** Public, non-fork repos under the student's own GitHub account only.
+2. **Pick a repo.** A public, non-fork repo under the student's own GitHub account, or a public team repo they have commits in (see 6).
 3. **Analyze** (`app/github_ingest.py`, `app/viva.py`). We download the repo in one request and drop lockfiles, build output, vendored, minified and generated code. Files are ranked by how often other files import them and by size, and we keep up to 12 (about 60,000 characters). Gemini writes 5 questions (2 easy, 2 medium, 1 hard) about real line ranges, each with a private rubric of 3–4 points. We check every question points at a file we sent and lines that exist, and we cut the code snippet from the real file ourselves, so the student always sees real code.
 4. **Answer.** Voice is converted to 16 kHz wav with ffmpeg and transcribed. Typed and spoken answers are then scored by the same step: Gemini compares the answer with the rubric and the code and returns a 0–10 score, the points covered and missed, and a quote copied word for word from the answer. If the first answer scores under 6, the student gets one follow-up question, and the question's score is the better of the two.
 5. **Report** (`app/report.py`). Each skill score is the mean of its questions × 10. Levels: strong ≥70, partial 40–69, not verified <40, not shown if the repo had no question on it. Claimed skills sit next to verified ones, and skills the repo shows that the student didn't claim are listed too.

@@ -1,45 +1,64 @@
-# Handoff - 2026-10-10 14:00 IST, written by Claude session
+# Handoff - 2026-10-10 16:30 IST, written by Claude session
 
 ## Goal (one line)
-Backend for VerifiedBuild: 5-question viva on a student's own repo → verified skill profile → internship match → recruiter shortlist.
+VerifiedBuild: 5-question viva on a student's own repo → verified skill profile → internship match → recruiter shortlist.
 
 ## Demo path (the exact clicks a judge will see)
-Sign up → pick repo → analyze (~13 s) → answer by voice → report (claimed vs verified, evidence, matches) → apply with consent → recruiter shortlist → CSV. Full script with lines to say: `docs/pitch.md`.
+Phone 1: sign up → pick repo → analyze (~15 s) → answer question 1 by voice. Phone 2: a finished report (claimed vs verified, evidence, verified hackathon, matches) → apply with consent. Laptop: the Promtal shortlist on `/recruiter/`, where the student appears within 5 s. Script and lines: `docs/pitch.md`.
 
 ## Works now (verified, with how it was verified)
-- Every endpoint in API_CONTRACT.md is real, not mocked. `python -m pytest`: 12 tests pass, including the full flow checked against `examples/*.json` shapes.
-- Live run on real repos (Modelpin, Guru-Graph) with real GitHub and Gemini, locally: questions point at real lines; vague answer 1, injection answer 0, Hinglish 10; follow-ups trigger; report, apply, shortlist and CSV are correct.
-- Voice: a webm recording was transcribed and scored 9/10, about 6 s per answer over 3 runs. Resume PDF: 10 skills extracted, and a planted instruction in the PDF was ignored.
-- File selection ran on all 10 public repos of samarthputhraya without errors.
-- **Live, end to end (06:30):** https://verifiedbuild-api-215071922486.asia-south1.run.app with Supabase and Vertex AI. One scripted run covered sign-up → analyze (13.8 s, 5 questions on samarthputhraya/kavach) → 5 answers (a weak one got a follow-up, one was spoken) → report → apply (consent and duplicate checks) → shortlist → CSV. Every call passed, CORS headers included. Typed answers took 3–4 s, the spoken one 6.7 s. The test data was deleted afterwards; listings stay.
+- Live on Cloud Run, revision 00008 (Supabase + Vertex AI). `/api/health` returns `v1.1`.
+  - Pages: `/` (landing), `/app/` (student web app), `/recruiter/` (dashboard, needs ADMIN_KEY), `/docs`.
+  - All return 200 (curl), and API 404s are JSON.
+- `python -m pytest`: 17 pass. They cover the full flow, hackathons, team repos, multi-viva reports, voice, errors, web pages and cache headers.
+- **Prod, through the student web app (16:14 IST):**
+  - Sign-up → kavach analyzed (6 files, 4 skills found) → 5 typed answers.
+  - A vague answer got a follow-up. A Hinglish answer scored 10/10.
+  - The report, matches (EdTech AI 60%, Promtal 45%) and build history were all correct. No console errors.
+  - Then, by script against prod (`X-Admin-Key` read from `.env`): apply without consent → refused; with consent → 201.
+  - The student appeared on the Promtal shortlist and in the CSV, and a wrong admin key got 401.
+  - Spoken answers last ran on prod at 06:30 (v1). Since then they were tested locally only (below).
+- **Prod, Android:** the Kotlin harness (`clients/android/harness`) passed against v1.1.
+- **Local, student web app:**
+  - Full flow including a spoken answer: MediaRecorder with a fake mic fed TTS audio, transcribed correctly.
+  - Also checked: a pasted-text fact, resume after reload, apply with the consent gate.
+  - The student then appeared on the recruiter shortlist.
+- **Local, recruiter dashboard:**
+  - Sign-in and wrong passcode, listings, live arrival highlight, candidate report with code beside each answer.
+  - CSV with `verified_hackathons`, mobile and dark mode.
+- Supabase holds no test data: every table is at 0 rows except the 6 listings (row counts checked).
 
 ## Broken / in progress
-- **Contract v1.1 is committed but NOT deployed.** It adds hackathons, team repos, the combined report and the new match weights; 15 tests pass, and the Kotlin harness passed against a local v1.1 server.
-  - It needs the `hackathons` table first: run `supabase/migrations/002_hackathons.sql` in the Supabase SQL editor, then `powershell -File scripts\deploy.ps1`.
-  - Live is still v1 (`/api/health` says `v1`). Deploying v1.1 without the table would break the report.
-- `scripts/stats.py` is unverified: it needs real vivas.
+- Nothing known broken.
+- Unverified: `scripts/stats.py` numbers on real volunteers. Only 2 test vivas so far, at a median of $0.039 per viva, priced with third-party token rates.
+- Android app (Ayush, `verifiedbuild-app`): status unknown here. The prompts are `docs/ai-studio-android-prompts.md`, stages 1–7; stage 3 needs v1.1, which is live.
 
 ## Next 3 steps (concrete, in order)
-1. Run the migration, deploy, check `/api/health` shows `v1.1`, then re-run the Kotlin harness against prod (`clients/android/harness`, API_BASE = the live URL).
-2. Ayush works through `docs/ai-studio-android-prompts.md` (v2, 7 stages) in `verifiedbuild-app`. Stages 1–2 work on v1; Stage 3 needs v1.1 live.
-3. Build the web recruiter dashboard (shortlist, evidence with code, CSV), then set `RECRUITER_WEB_URL` for the app.
+1. Pick the persona and fill every `[bracket]` in `docs/pitch.md` with real facts.
+   - Give the persona a finished viva plus a verified hackathon.
+   - Run `python -m app.demo_cache <session_id>` for their repo.
+   - Record the backup video.
+2. Volunteers tonight, following `docs/volunteers.md` (5 built + 5 not built).
+   - Put their repos in `seed/labelled_set.json`, then run `python -m scripts.stats --labels seed/labelled_set.json`.
+   - Copy the numbers into pitch section 6.
+3. Ayush finishes the Android stages. Then 3 timed rehearsals, including one fallback to the video.
 
 ## Decisions made (and why, one line each)
-- Gemini runs on Vertex AI as the Cloud Run identity: the Developer API key returned 402 (prepaid credits empty).
-- `gemini-3.8-flash` at thinking LOW: questions take ~10 s instead of 25–50 s, with the same scores on test answers.
-- Voice is transcribed by `gemini-3.5-flash` and then scored like text: 3.8-flash hung on audio again and again.
-- One tarball download plus one GraphQL query per repo, instead of 30+ REST calls.
-- Supabase over plain REST with httpx (the supabase package was dropped). Listings upserted from `seed/listings.json` on every start.
-- Snippets are cut from the real file by the server, never copied from the model's output.
-- Hackathons are claims until a viva on their repo is finished. Team repos are allowed when the student has commits there, and the questions focus on the files they changed (from up to 30 of their commits).
-- Match = 60% verified skills, 25% interests, 15% best verified hackathon (viva × result weight).
-- The report combines the latest finished viva per repo.
+- Gemini on Vertex as the Cloud Run identity: the Developer API key returned 402 (no prepaid credits).
+- `gemini-3.8-flash` at thinking LOW for questions and scoring. `gemini-3.5-flash` transcribes voice, because 3.8-flash hung on audio.
+- Web pages are plain HTML/JS with no build step, served by the API: one deploy, same origin, CSP `'self'`.
+- The student web app exists so judges can try it from a QR code (`docs/qr-student-app.svg`), and as a fallback if the Android build isn't ready.
+- Hackathons count only after a viva on their repo. On team repos, questions cover the files the student changed.
+- Match = 60% verified skills + 25% interests + 15% best verified hackathon. No AI in the formula.
+- Web files are sent with `Cache-Control: no-cache`, so phones never mix old and new JS after a deploy.
 
 ## Gotchas
-- `GITHUB_TOKEN` is currently SAM's `gh auth token`, which has repo scope. Swap it for a fine-grained token with read-only access to public repos. Private repos are refused in code.
-- Supabase uses a new `sb_secret_` key, sent in the `apikey` header only (it is rejected as a Bearer token).
-- Running locally needs `gcloud auth application-default login` once (Vertex), and ffmpeg on PATH for voice.
+- `ADMIN_KEY` is in `.env`. Share it with Ayush privately, never in the repo or chat logs.
+- `GITHUB_TOKEN` is SAM's `gh` token, which has repo scope. Swap it for a fine-grained public-read token. Private repos are refused in code anyway.
+- `scripts/deploy.ps1` deploys the last commit, not uncommitted edits.
+- Running locally needs `gcloud auth application-default login` (Vertex) and ffmpeg on PATH.
+- Supabase `sb_secret_` keys go in the `apikey` header only.
 - The folder is still named `tricity`. Close VS Code, then `Rename-Item "$HOME\OneDrive\Documents\tricity" verifiedbuild-api`.
 
 ## How to run
-`pip install -r requirements-dev.txt` → `copy .env.example .env` (fill in) → `uvicorn app.main:app --reload --env-file .env` → http://127.0.0.1:8000/docs. Tests: `python -m pytest`. Deploy: `powershell -File scripts\deploy.ps1`.
+`pip install -r requirements-dev.txt` → `copy .env.example .env` (fill it in) → `uvicorn app.main:app --reload --env-file .env` → http://127.0.0.1:8000/app/. Tests: `python -m pytest`. Deploy: `powershell -File scripts\deploy.ps1`.
