@@ -132,10 +132,176 @@ const VB = (() => {
       h("span", { class: "shape-in" }, children));
   }
 
+  // The logo: an ink disc with one guilloche strand and a check
   function brandMark() {
+    const wave = [];
+    for (let i = 0; i <= 180; i++) {
+      const t = (i / 180) * Math.PI * 2;
+      const r = 37 + 3 * Math.sin(12 * t);
+      wave.push(`${(50 + r * Math.cos(t)).toFixed(1)} ${(50 + r * Math.sin(t)).toFixed(1)}`);
+    }
     return s("svg", { class: "brand-mark", viewBox: "0 0 100 100", "aria-hidden": "true" },
-      s("path", { d: shapePath("cookie9"), fill: "var(--md-primary)" }),
-      s("path", { d: "M30 52 L44 66 L71 37", fill: "none", stroke: "var(--md-on-primary)", "stroke-width": "10", "stroke-linecap": "round", "stroke-linejoin": "round" }));
+      s("circle", { class: "bm-disc", cx: 50, cy: 50, r: 48 }),
+      s("path", { class: "bm-wave", d: `M${wave.join("L")}Z` }),
+      s("path", { class: "bm-check", d: "M31 52 L44 65 L70 38" }));
+  }
+
+  // ---------- The seal: a guilloche rosette drawn from one student's scores ----------
+
+  // A small seeded random generator, so the same student always gets the same seal
+  function seeded(text) {
+    let h32 = 2166136261;
+    for (const ch of String(text || "")) { h32 ^= ch.charCodeAt(0); h32 = Math.imul(h32, 16777619); }
+    let a = h32 >>> 0;
+    return () => {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  let sealCount = 0;
+  const FOIL_STOPS = ["f1", "f2", "f3", "f4", "f5", "f1"];
+  function foilGradient(id, len = 140) {
+    return s("linearGradient", { id, class: "foil", gradientUnits: "userSpaceOnUse", x1: 0, y1: 0, x2: len, y2: len, spreadMethod: "reflect" },
+      FOIL_STOPS.map((cls, i) => s("stop", { class: cls, offset: (i / (FOIL_STOPS.length - 1)).toFixed(2) })));
+  }
+
+  // skills: { tag: score }. Each of the 6 skills is one band of the rosette, outermost first; a higher score
+  // makes a deeper wave, and a skill that wasn't asked is a faint dotted ring. The seed sets the waves' phase.
+  function seal({ skills = {}, seed = "", size = 200, micro = null, draw = false, empty = false, label, center } = {}) {
+    const id = `foil-${++sealCount}`;
+    const rand = seeded(seed);
+    const small = size < 96;
+    const steps = small ? 200 : 420;
+    const strands = small ? 3 : 4;
+    const radii = [80, 70.5, 61, 51.5, 42, 33];
+    const bands = [];
+    TAGS.forEach(([tag], k) => {
+      const score = skills[tag];
+      const R = radii[k];
+      const n = [34, 30, 26, 22, 18, 14][k] + 2 * Math.floor(rand() * 3);
+      const phase = rand() * Math.PI * 2;
+      const wob = rand() * Math.PI * 2;
+      if (empty || score === undefined || score === null) {
+        bands.push(s("circle", { class: "band flat", cx: 100, cy: 100, r: R, pathLength: 1, "stroke-width": small ? 1.4 : 0.8 }));
+        return;
+      }
+      const A = 1.2 + 3.6 * Math.max(0, Math.min(100, score)) / 100;
+      for (let j = 0; j < strands; j++) {
+        const pts = [];
+        for (let i = 0; i <= steps; i++) {
+          const t = (i / steps) * Math.PI * 2;
+          const r = R + A * (0.82 + 0.18 * Math.sin(2 * t + wob)) * Math.sin(n * t + phase + (j * Math.PI * 2) / strands);
+          pts.push(`${(100 + r * Math.cos(t)).toFixed(2)} ${(100 + r * Math.sin(t)).toFixed(2)}`);
+        }
+        bands.push(s("path", { class: "band", d: `M${pts.join("L")}Z`, pathLength: 1, stroke: `url(#${id})`, "stroke-width": small ? 0.9 : 0.62 }));
+      }
+    });
+    const parts = [s("defs", {}, foilGradient(id), micro ? s("path", { id: `${id}-rim`, d: "M100 8 a92 92 0 1 1 -0.01 0" }) : null)];
+    if (!small) parts.push(s("circle", { class: "rim", cx: 100, cy: 100, r: 97, "stroke-width": 0.6 }), s("circle", { class: "rim", cx: 100, cy: 100, r: 88, "stroke-width": 0.4 }));
+    if (micro) {
+      const text = s("text", { class: "micro" }, s("textPath", { href: `#${id}-rim` }, `${micro} · `.repeat(Math.max(1, Math.ceil(170 / (micro.length + 3))))));
+      parts.push(text);
+    }
+    parts.push(...bands, s("circle", { class: "disc", cx: 100, cy: 100, r: 25 }));
+    const el = h("div", { class: `seal${small ? " small" : ""}${draw ? " draw" : ""}${empty ? " empty" : ""}`, role: label ? "img" : null, "aria-label": label || null, "aria-hidden": label ? null : "true" },
+      s("svg", { viewBox: "0 0 200 200" }, parts), center ? h("div", { class: "seal-in" }, center) : null);
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+    el.style.setProperty("--seal", `${size}px`);
+    initTilt();
+    return el;
+  }
+
+  // The overall score in the middle of a seal; with draw, it counts up once the lines are drawn
+  function sealScore(overall, { of = "out of 100", countUp = false } = {}) {
+    const big = h("span", { class: "big" }, countUp ? "0" : String(overall));
+    if (countUp) {
+      const start = performance.now() + 1100;
+      const step = (now) => {
+        const p = Math.max(0, Math.min(1, (now - start) / 900));
+        big.textContent = String(Math.round(overall * (1 - Math.pow(1 - p, 3))));
+        if (p < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    }
+    return [big, of ? h("span", { class: "of" }, of) : null];
+  }
+
+  // Tilt the phone (or move the mouse) and the foil shifts, like a hologram on a banknote
+  const tilt = { x: 0, y: 0, frame: 0, ready: false };
+  function applyTilt() {
+    tilt.frame = 0;
+    const root = document.documentElement.style;
+    root.setProperty("--tilt-x", tilt.x.toFixed(3));
+    root.setProperty("--tilt-y", tilt.y.toFixed(3));
+    const transform = `rotate(${(tilt.x * 40).toFixed(1)} 100 100) translate(${(tilt.x * 36).toFixed(1)} ${(tilt.y * 36).toFixed(1)})`;
+    document.querySelectorAll("linearGradient.foil").forEach((g) => g.setAttribute("gradientTransform", transform));
+  }
+  function setTilt(x, y) {
+    tilt.x = Math.max(-1, Math.min(1, x));
+    tilt.y = Math.max(-1, Math.min(1, y));
+    if (!tilt.frame) tilt.frame = requestAnimationFrame(applyTilt);
+  }
+  function initTilt() {
+    if (tilt.ready) return;
+    tilt.ready = true;
+    window.addEventListener("pointermove", (e) => { if (e.pointerType === "mouse") setTilt((e.clientX / window.innerWidth) * 2 - 1, (e.clientY / window.innerHeight) * 2 - 1); }, { passive: true });
+    window.addEventListener("deviceorientation", (e) => { if (e.gamma !== null) setTilt(e.gamma / 28, ((e.beta || 45) - 45) / 28); }, { passive: true });
+    // iPhones ask first, on a tap
+    const D = window.DeviceOrientationEvent;
+    if (D && typeof D.requestPermission === "function") {
+      window.addEventListener("pointerdown", () => D.requestPermission().catch(() => {}), { once: true });
+    }
+  }
+
+  // A record number from the student's id, e.g. VB-78DE-E06D
+  const recordNo = (id) => { const x = String(id || "").replace(/[^0-9a-f]/gi, "").toUpperCase().padEnd(8, "0"); return `VB-${x.slice(0, 4)}-${x.slice(4, 8)}`; };
+
+  // The fine wavy strip along the top of a credential
+  function guillocheStrip(seed) {
+    const rand = seeded(`${seed}-strip`);
+    const id = `foil-${++sealCount}`;
+    const paths = [];
+    for (let j = 0; j < 5; j++) {
+      const period = 22 + Math.floor(rand() * 3) * 6;
+      const amp = 6 + rand() * 6;
+      const ph = rand() * Math.PI * 2;
+      const pts = [];
+      for (let x = 0; x <= 600; x += 2) pts.push(`${x} ${(18 + amp * Math.sin((x / period) * Math.PI * 2 + ph + j * 1.1)).toFixed(2)}`);
+      paths.push(s("path", { d: `M${pts.join("L")}`, stroke: `url(#${id})`, "vector-effect": "non-scaling-stroke" }));
+    }
+    initTilt();
+    return s("svg", { class: "cred-strip", viewBox: "0 0 600 36", preserveAspectRatio: "none", "aria-hidden": "true" }, s("defs", {}, foilGradient(id, 260)), paths);
+  }
+
+  // Code-shaped bars that scroll past a scan line while the repo is read
+  function scanner(seed) {
+    const rand = seeded(seed);
+    const kinds = ["sc-kw", "sc-tx", "sc-fn", "sc-tx", "sc-str", "sc-num", "sc-tx", "sc-com"];
+    let indent = 0;
+    const rows = [];
+    for (let i = 0; i < 26; i++) {
+      if (rand() < 0.25) indent = Math.max(0, indent - 1); else if (rand() < 0.3) indent = Math.min(3, indent + 1);
+      const toks = [];
+      const n = rand() < 0.12 ? 0 : 1 + Math.floor(rand() * 4);
+      for (let k = 0; k < n; k++) toks.push([kinds[Math.floor(rand() * kinds.length)], (1 + rand() * 5.5).toFixed(2)]);
+      rows.push([String(i + 1), indent * 1.1, toks]);
+    }
+    // Built twice, so the scroll loops without a jump
+    const draw = () => rows.map(([ln, indentRem, toks]) => {
+      const pad = h("span");
+      pad.style.width = `${indentRem}rem`;
+      return h("div", { class: "scanner-row" }, h("span", { class: "ln" }, ln), pad, toks.map(([cls, w]) => { const t = h("i", { class: cls }); t.style.width = `${w}rem`; return t; }));
+    });
+    return h("div", { class: "scanner", "aria-hidden": "true" }, h("div", { class: "scanner-rows" }, draw(), draw()));
+  }
+
+  function stampApplied(fresh) {
+    return h("span", { class: `stamp-applied${fresh ? " fresh" : ""}` }, icon("check_circle"), "Applied");
   }
 
   function avatar(username, cls) {
@@ -169,7 +335,9 @@ const VB = (() => {
   }
 
   function spinner() {
-    return s("svg", { class: "spinner", viewBox: "0 0 100 100", "aria-hidden": "true" }, s("path", { d: shapePath("burst") }));
+    return s("svg", { class: "spinner", viewBox: "0 0 48 48", "aria-hidden": "true" },
+      s("circle", { class: "sp-track", cx: 24, cy: 24, r: 20 }),
+      s("circle", { class: "sp-bar", cx: 24, cy: 24, r: 20, "stroke-dasharray": "34 92" }));
   }
 
   const loadingView = (text) => h("div", { class: "loading", role: "status" }, spinner(), h("p", { class: "body-l" }, text));
@@ -349,31 +517,68 @@ const VB = (() => {
     ? { claimed: "You claimed this", by: "by you", answer: "Your answer" }
     : { claimed: "They claimed this", by: "by this student", answer: "Their answer" });
 
-  function scoreBadge(overall, size = 120) {
-    return h("div", { class: "score-badge", role: "img", "aria-label": `Overall ${overall} out of 100` },
-      shape("burst", size, "solid", h("span", { class: "big num" }, String(overall)), h("span", { class: "of" }, "out of 100")));
+  // The student's seal with the overall score in the middle
+  function scoreSeal(r, size = 200, { draw = false } = {}) {
+    return seal({ skills: r.skills, seed: r.student.github_username, size, draw, micro: size >= 180 ? `${r.student.github_username} ${recordNo(r.student.student_id || r.student.id)} verified by viva` : null,
+      label: `Overall ${r.overall} out of 100`, center: sealScore(r.overall, { countUp: draw }) });
+  }
+
+  // The top of a report: who it belongs to, the record number and the seal
+  function credential(r, who, { extra } = {}) {
+    const repos = [...new Set(r.evidence.map((e) => e.repo_full_name))];
+    const sid = r.student.student_id || r.student.id || r.student.github_username;
+    return h("article", { class: "credential", "aria-label": "Verified skill record" },
+      guillocheStrip(r.student.github_username),
+      h("div", { class: "cred-head" }, h("span", { class: "title-m" }, "Verified skill record"), h("span", { class: "record-no" }, recordNo(sid))),
+      h("div", { class: "cred-body" },
+        h("div", { class: "holder" },
+          h("div", { class: "holder-id" }, avatar(r.student.github_username, "lg"),
+            h("div", {}, h("h1", { class: "headline-m" }, r.student.name),
+              h("div", { class: "li-meta body-m" }, h("span", {}, r.student.college),
+                who === "you" ? h("span", {}, `@${r.student.github_username}`) : h("a", { href: githubUser(r.student.github_username), target: "_blank", rel: "noopener noreferrer" }, `@${r.student.github_username}`)))),
+          h("div", { class: "chips" }, repos.map((x) => chip(repoName(x), "fact", "code"))),
+          extra || null),
+        r.status === "done" ? scoreSeal(r, 196) : seal({ empty: true, size: 150, seed: r.student.github_username, center: h("span", { class: "of" }, "Not verified yet") })),
+      h("div", { class: "cred-foot" },
+        h("span", {}, icon("verified"), `Verified by a 5-question viva on ${repos.length === 1 ? "this repo" : `${repos.length} repos`}`),
+        h("span", {}, `${count(r.evidence.length, "answer")} with evidence`)));
   }
 
   function skillStamps(skills) {
-    return h("div", { class: "stamps" }, TAGS.map(([tag, name]) => {
+    const rows = TAGS.map(([tag, name]) => {
       const score = skills[tag];
       const level = levelOf(score);
-      return h("div", { class: `stamp ${level}` },
-        shape(TAG_SHAPE[tag], 72, level, icon(TAG_ICON[tag], "lg")),
-        h("div", { class: "name body-m" }, name),
-        score === undefined ? h("div", { class: "body-s var" }, "Not asked") : h("div", { class: "score num" }, String(score)),
+      const fill = h("span");
+      requestAnimationFrame(() => requestAnimationFrame(() => { fill.style.width = `${score || 0}%`; }));
+      return h("div", { class: `ledger-row ${level}`, role: "listitem" },
+        h("span", { class: "name" }, icon(TAG_ICON[tag]), name),
+        h("span", { class: `engraved ${level}`, role: "img", "aria-label": score === undefined ? "Not asked" : `${score} out of 100` }, fill),
+        h("span", { class: "score" }, score === undefined ? "–" : String(score)),
         levelChip(level));
-    }));
+    });
+    return h("div", { class: "ledger", role: "list" }, rows);
   }
 
+  // Claimed vs verified as a diff from the resume to the viva: "+" was shown but not claimed,
+  // "−" was claimed but not shown (yet), and a plain line is claimed and shown.
   function claimsList(rows, who) {
     const w = words(who);
-    return h("div", { class: "claims", role: "list" }, rows.map((r) => h("div", { class: "claim", role: "listitem" },
-      h("div", {},
-        h("div", { class: `said${r.claimed ? "" : " none"}` }, r.claimed ? r.name : `${TAG_NAME[r.tag] || r.tag}, not claimed`),
-        h("div", { class: "body-s var" }, r.claimed ? `${w.claimed}. It counts as ${TAG_NAME[r.tag] || r.tag}.` : "Shown in the viva anyway")),
-      h("span", { class: "arrow" }, icon("arrow_forward")),
-      levelChip(r.level))));
+    const line = (r) => {
+      const skill = TAG_NAME[r.tag] || r.tag;
+      const shown = r.level === "strong" || r.level === "partial";
+      const kind = !r.claimed ? "add" : shown ? "same" : "del";
+      const mk = kind === "add" ? "+" : kind === "del" ? "−" : " ";
+      const note = !r.claimed ? `Not on the resume, shown in the viva`
+        : shown ? `${w.claimed}. Shown as ${skill}`
+          : r.level === "not_shown" ? `${w.claimed}. This repo had no ${skill} question` : `${w.claimed}. Not shown in the ${skill} answers`;
+      return h("div", { class: `diff-row ${kind}`, role: "listitem" },
+        h("span", { class: "mk", "aria-hidden": "true" }, mk),
+        h("span", { class: "what" }, h("b", {}, r.claimed ? r.name : skill), h("small", {}, note)),
+        levelChip(r.level));
+    };
+    return h("div", { class: "diff" },
+      h("div", { class: "diff-head", "aria-hidden": "true" }, h("span", {}, "resume → viva"), h("span", {}, `${rows.filter((r) => !r.claimed).length} added`)),
+      h("div", { role: "list" }, rows.map(line)));
   }
 
   // action(x) returns extra nodes for a row, e.g. "Verify now" and "Remove" buttons
@@ -430,13 +635,16 @@ const VB = (() => {
       card("code", String(bh.median_lines_per_commit), "median lines changed per commit"));
   }
 
+  // An internship match as a ticket: the match on the stub, the role and the reason on the right
   function matchCard(m, listing, { top, action } = {}) {
     return h("div", { class: `match-card${top ? " top" : ""}` },
-      ring(m.match, { size: 64, stroke: 6, label: `${m.match}% match`, children: h("span", { class: "title-m" }, `${m.match}%`) }),
-      h("div", { class: "title-m" }, m.title),
-      h("div", { class: "body-m" }, listing && listing.description ? `${m.venture}. ${listing.description}` : m.venture),
-      h("p", { class: "why" }, m.why),
-      action ? h("div", { class: "actions" }, action) : null);
+      h("div", { class: "ticket-stub", role: "img", "aria-label": `${m.match}% match` },
+        h("span", { class: "pct" }, String(m.match), h("small", {}, "%")), h("span", { class: "lbl" }, "match")),
+      h("div", { class: "ticket-main" },
+        h("div", { class: "title-m" }, m.title),
+        h("div", { class: "body-m var" }, listing && listing.description ? `${m.venture}. ${listing.description}` : m.venture),
+        h("p", { class: "why" }, m.why),
+        action ? h("div", { class: "actions" }, action) : null));
   }
 
   // The top app bar takes a container colour once the page scrolls
@@ -450,7 +658,8 @@ const VB = (() => {
     TAGS, TAG_NAME, TAG_ICON, TAG_SHAPE, LEVEL_LABEL, RESULT_LABEL, INTERESTS, INTEREST_LABEL, SKILL_CHIPS,
     h, s, enc, githubUser, githubRepo, levelOf, pct, repoName, count, ago, ApiError, api, store,
     icon, shape, shapePath, brandMark, avatar, ring, wavy, spinner, loadingView, stepsBar,
+    seal, sealScore, scoreSeal, credential, recordNo, guillocheStrip, scanner, stampApplied,
     chip, levelChip, filterChips, button, textField, selectField, banner, snackbar, confirm,
-    highlight, codeBlock, scoreBadge, skillStamps, claimsList, hackathonList, scoreDots, evidenceSheet, buildHistory, matchCard, watchScroll,
+    highlight, codeBlock, skillStamps, claimsList, hackathonList, scoreDots, evidenceSheet, buildHistory, matchCard, watchScroll,
   };
 })();
