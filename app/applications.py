@@ -1,4 +1,4 @@
-"""Applying to a listing, and the recruiter's shortlist (JSON and CSV).
+"""Applying to a listing, and the recruiter's shortlist (JSON and CSV), with verified hackathons.
 
 Applying is the consent step: it shares the student's report with that one recruiter.
 The shortlist only ever shows students who applied to that listing.
@@ -34,7 +34,8 @@ def apply(student_id: str, listing_id: str, share_consent: bool) -> dict:
     s = report.summary(student_id)
     if s["status"] != "done":
         raise ApiError("VIVA_NOT_DONE", "Finish your viva before you apply.", 409)
-    match = matching.score(s["skills"], student["interests"], listing)["match"]
+    hackathon = matching.hackathon_signal(report.hackathon_items(student_id, s["per_repo"]))
+    match = matching.score(s["skills"], student["interests"], listing, hackathon)["match"]
     try:
         row = db.insert("applications", {
             "student_id": student_id, "listing_id": listing_id, "match": match, "share_consent": True, "status": "applied",
@@ -49,7 +50,11 @@ def _candidate(application: dict) -> dict | None:
     if not student:
         return None
     s = report.summary(student["id"])
-    analysis = db.get("repo_analyses", s["session"]["analysis_id"]) if s["session"] else None
+    analysis = s["analysis"]
+    verified_hackathons = [
+        {"event": h["event"], "year": h["year"], "result": h["result"], "viva_score": h["viva_score"]}
+        for h in report.hackathon_items(student["id"], s["per_repo"]) if h["verified"]
+    ]
     results = s["results"]
     top = max(results, key=lambda r: r["score"]) if results else None
     return {
@@ -67,6 +72,7 @@ def _candidate(application: dict) -> dict | None:
             "answer_excerpt": report.excerpt(top["best"]["transcript"]),
             "score": top["score"],
         } if top else None,
+        "hackathons": verified_hackathons,
         "applied_at": _iso_z(application["created_at"]),
     }
 
@@ -82,7 +88,7 @@ def shortlist(listing_id: str) -> dict:
 
 
 CSV_COLUMNS = ["rank", "name", "college", "github_username", "repo", "match", "overall", *TAGS,
-               "voice_answers", "text_answers", "pasted_answers", "applied_at"]
+               "voice_answers", "text_answers", "pasted_answers", "applied_at", "verified_hackathons"]
 
 
 def shortlist_csv(listing_id: str) -> str:
@@ -94,5 +100,6 @@ def shortlist_csv(listing_id: str) -> str:
             c["rank"], c["name"], c["college"], c["github_username"], c["repo_full_name"], c["match"], c["overall"],
             *[c["skills"].get(tag, "") for tag in TAGS],
             c["answer_modes"]["voice"], c["answer_modes"]["text"], c["answer_modes"]["pasted"], c["applied_at"],
+            "; ".join(f"{matching.RESULT_LABEL[h['result']]} {h['event']} {h['year']} (viva {h['viva_score']})" for h in c["hackathons"]),
         ])
     return out.getvalue()

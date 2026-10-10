@@ -11,10 +11,10 @@ from fastapi import APIRouter, Depends, FastAPI, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
-from app import applications, db, errors, github_ingest, report, resume, viva
+from app import applications, db, errors, github_ingest, hackathons, report, resume, viva
 from app.config import settings
 from app.errors import ApiError
-from app.models import AnalyzeRequest, AnswerRequest, ApplyRequest, StudentCreate
+from app.models import AnalyzeRequest, AnswerRequest, ApplyRequest, HackathonCreate, StudentCreate
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("verifiedbuild")
@@ -90,7 +90,7 @@ def require_admin(x_admin_key: str | None = Header(default=None)) -> None:
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "demo_mode": settings.demo_mode == "cached", "version": "v1"}
+    return {"ok": True, "demo_mode": settings.demo_mode == "cached", "version": "v1.1"}
 
 
 # --- Student flow ---
@@ -112,6 +112,16 @@ def create_student(body: StudentCreate):
     })
     return {"student_id": student["id"], "github_username": student["github_username"],
             "claimed_skills": claimed, "claimed_from": source}
+
+
+@app.post("/api/students/{student_id}/hackathons", status_code=201, dependencies=[per_hour("hackathon", 120)])
+def add_hackathon(student_id: str, body: HackathonCreate):
+    return hackathons.add(student_id, body)
+
+
+@app.delete("/api/students/{student_id}/hackathons/{hackathon_id}")
+def delete_hackathon(student_id: str, hackathon_id: str):
+    return hackathons.remove(student_id, hackathon_id)
 
 
 @app.get("/api/github/{username}/repos")

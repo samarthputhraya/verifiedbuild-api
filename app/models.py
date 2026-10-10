@@ -62,3 +62,19 @@ class ApplyRequest(BaseModel):
     student_id: str
     listing_id: str
     share_consent: bool
+
+
+class HackathonCreate(BaseModel):
+    event: str = Field(min_length=1, max_length=120)
+    year: int = Field(ge=2000, le=2100)
+    result: Literal["winner", "finalist", "participant"]
+    team_size: int = Field(ge=1, le=20)
+    repo_full_name: str = Field(min_length=3, max_length=140)  # the hackathon project; owned or with the student's commits
+
+    @field_validator("event")
+    @classmethod
+    def _strip_event(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("can't be empty")
+        return v
