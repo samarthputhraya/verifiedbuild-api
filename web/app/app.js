@@ -1,9 +1,9 @@
 "use strict";
-// VerifiedBuild student app (web). Same API and the same flow as the Android app:
+// VerifiedBuild student app (web):
 // sign up → pick a repo → "what we found" → 5 questions (voice or text) → report → apply.
 // Plain JavaScript, no build step. Shared components live in /common.js (the VB object).
 
-const { h, enc, chip, api, icon, shape, button, levelOf, repoName, TAG_NAME, TAG_ICON, TAG_SHAPE, RESULT_LABEL, INTERESTS, SKILL_CHIPS } = VB;
+const { h, enc, chip, api, icon, shape, button, levelOf, repoName, TAG_NAME, TAG_ICON, RESULT_LABEL, INTERESTS, SKILL_CHIPS } = VB;
 const local = VB.store(window.localStorage);
 const tab = VB.store(window.sessionStorage);
 const app = document.getElementById("app");
@@ -262,17 +262,19 @@ function showSignup(token, message) {
   }
   draw();
 
-  const fact = (iconName, shapeKind, text) => h("div", { class: "fact" }, shape(shapeKind, 48, "secondary", icon(iconName)), h("span", { class: "body-l" }, text));
+  const fact = (iconName, text) => h("div", { class: "fact" }, icon(iconName), h("span", { class: "body-l" }, text));
+  const sample = VB.seal({ skills: { backend: 82, frontend: 58, data: 71, ai_ml: 44, devops: 63 }, seed: "verifiedbuild", size: 128 });
   paint(token,
     message ? VB.banner(message, { kind: "info", iconName: "info" }) : null,
     h("div", { class: "signup" },
       h("div", { class: "signup-hero" },
+        sample,
         h("h1", { class: "display-m" }, "Show what you can really build."),
         h("p", { class: "body-l var" }, "Pick one of your GitHub repos and answer 5 questions about your own code. Internships are matched on the skills you show, not the ones you list."),
         h("div", { class: "facts" },
-          fact("mic", "cookie9", "Speak or type, in any language"),
-          fact("timer", "clover", "5 questions, about 8 minutes"),
-          fact("lock", "cookie6", "Private until you apply"))),
+          fact("mic", "Speak or type, in any language"),
+          fact("timer", "5 questions, about 8 minutes"),
+          fact("lock", "Private until you apply"))),
       card));
 }
 
@@ -349,10 +351,10 @@ async function showHome(token) {
         h("div", { class: "fields" },
           h("h2", { class: "headline-s" }, "Your verified profile"),
           h("div", { class: "chips" }, Object.entries(report.skills).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([tag, score]) => chip(`${TAG_NAME[tag]} ${score}`, levelOf(score), TAG_ICON[tag])))),
-        VB.scoreBadge(report.overall, 96)),
+        VB.scoreSeal(report, 112)),
       h("div", { class: "actions" }, button("View report", { href: "#/report", iconName: "verified" }), button("Verify another repo", { href: "#/repos", kind: "tonal" })))
     : h("div", { class: "card hero" },
-      h("h2", { class: "headline-s" }, "Verify your skills"),
+      h("div", { class: "hero-row" }, h("h2", { class: "headline-s" }, "Verify your skills"), VB.seal({ empty: true, size: 84, seed: report.student.github_username })),
       h("ol", { class: "steps-list" },
         [["Pick one of your GitHub repos"], ["Answer 5 questions about its code, out loud or typed"], ["Get matched to internships on what you showed"]]
           .map(([t], i) => h("li", {}, h("span", { class: "steps-num" }, String(i + 1)), h("span", { class: "body-l" }, t)))),
@@ -451,11 +453,15 @@ async function showRepos(token) {
 
 async function showAnalyzing(token, repo) {
   frame(null);
-  const step = (iconName, text) => h("li", {}, shape("cookie9", 40, "secondary", icon(iconName, "sm")), h("span", { class: "body-l" }, text));
-  paint(token, h("div", { class: "center-stage" },
+  const step = (iconName, text) => h("li", {}, icon(iconName, "sm"), h("span", { class: "body-m" }, text));
+  const clock = h("span", { class: "num" }, "0:00");
+  const started = Date.now();
+  const clockTimer = setInterval(() => { if (!clock.isConnected) return clearInterval(clockTimer); clock.textContent = fmt((Date.now() - started) / 1000); }, 500);
+  paint(token, h("div", { class: "center-stage", role: "status", "aria-label": `Reading ${repoName(repo)}` },
     h("h1", { class: "headline-l" }, `Reading ${repoName(repo)}`),
     h("p", { class: "body-l var" }, "This usually takes 15 to 30 seconds. Keep this page open."),
-    VB.wavy(`Reading ${repoName(repo)}`),
+    VB.scanner(repo),
+    h("div", { class: "scan-meta" }, h("span", {}, repo), clock),
     h("div", { class: "card what-happens" },
       h("h2", { class: "title-m" }, "What happens now"),
       h("ul", {},
@@ -499,7 +505,7 @@ function showFound(token) {
       : null,
     section("What your code shows",
       h("div", { class: "list" }, a.repo_skills.map((sk) => h("div", { class: "li skill-found" },
-        shape(TAG_SHAPE[sk.tag] || "cookie9", 48, "primary", icon(TAG_ICON[sk.tag] || "code")),
+        shape("circle", 48, "", icon(TAG_ICON[sk.tag] || "code")),
         h("div", { class: "li-main" }, h("div", { class: "title-m" }, TAG_NAME[sk.tag] || sk.tag), h("div", { class: "body-m var" }, sk.evidence)))))),
     h("div", { class: "section" },
       h("div", { class: "card filled" },
@@ -657,6 +663,12 @@ function fmt(seconds) {
 
 let timerRing = null;
 
+function comment(kind, meta, ...body) {
+  return h("div", { class: `comment ${kind}`.trim() },
+    h("span", { class: "comment-mark", "aria-hidden": "true" }, VB.brandMark()),
+    h("div", { class: "comment-body" }, h("div", { class: "comment-meta" }, meta), body));
+}
+
 function drawViva() {
   const s = viva.s;
   if (!s) return;
@@ -681,7 +693,7 @@ function drawViva() {
   let area;
   if (viva.input.tab === "voice") {
     const rec = viva.input.rec;
-    timerRing = VB.ring(Math.max(0, left / s.timeLimit) * 100, { size: 136, stroke: 6, label: "Time left" });
+    timerRing = VB.ring(Math.max(0, left / s.timeLimit) * 100, { size: 136, stroke: 4, label: "Time left" });
     const mic = h("button", {
       type: "button", class: `mic${recorder.active ? " recording" : ""}`, disabled: busy,
       "aria-label": recorder.active ? "Stop recording" : rec ? "Record again" : "Start recording",
@@ -741,13 +753,15 @@ function drawViva() {
         h("span", { class: "timer", id: "timer" }, icon("timer", "sm"), h("span", { id: "timer-text" }, fmt(left)))),
       VB.stepsBar(s.questions.length, s.answered.length, idx)),
     h("div", { class: "viva-body" },
-      h("div", { class: "chips" },
-        chip({ easy: "Easy", medium: "Medium", hard: "Hard" }[q.difficulty] || q.difficulty, "fact"),
-        chip(TAG_NAME[q.skill] || q.skill, "primary", TAG_ICON[q.skill]),
-        mine ? chip("You changed this file", "tertiary", "commit") : null),
-      s.followUp
-        ? [h("div", { class: "followup" }, icon("forum"), h("strong", { class: "label-l" }, "One more chance on this question"), h("p", {}, s.followUp)), h("p", { class: "question-text muted" }, q.question)]
-        : h("p", { class: "question-text" }, q.question),
+      // The question is a review comment on the student's own file; a follow-up is a reply in the same thread
+      h("div", { class: "thread" },
+        comment(s.followUp ? "muted" : "", [h("strong", {}, "VerifiedBuild"), h("span", {}, "asked about"), h("span", { class: "mono" }, `${q.file}, lines ${q.lines}`)],
+          h("div", { class: "chips" },
+            chip({ easy: "Easy", medium: "Medium", hard: "Hard" }[q.difficulty] || q.difficulty, "fact"),
+            chip(TAG_NAME[q.skill] || q.skill, "primary", TAG_ICON[q.skill]),
+            mine ? chip("You changed this file", "tertiary", "commit") : null),
+          h("p", { class: `question-text${s.followUp ? " muted" : ""}` }, q.question)),
+        s.followUp ? comment("reply followup", [h("strong", {}, "Follow-up"), h("span", {}, "one more chance on this question")], h("p", {}, s.followUp)) : null),
       VB.codeBlock(q.file, q.lines, q.snippet, q.snippet_start_line),
       h("div", { class: "answer-panel" }, seg, area, errorBox)));
   if (fresh) window.scrollTo({ top: 0, behavior: "smooth" }); // a new question or follow-up starts at the top
@@ -792,8 +806,8 @@ async function showDone(token) {
   paint(token, VB.loadingView("Scoring your answers…"));
   const report = await api(`/api/report/${enc(me.id())}`);
   const verified = a ? report.hackathons.filter((x) => x.verified && x.repo_full_name.toLowerCase() === a.repo.full_name.toLowerCase()) : [];
-  paint(token, h("div", { class: "center-stage" },
-    report.status === "done" ? VB.scoreBadge(report.overall, 168) : null,
+  paint(token, h("div", { class: "center-stage done-stage" },
+    report.status === "done" ? VB.scoreSeal(report, 232, { draw: true }) : null,
     h("h1", { class: "display-s" }, "Viva complete"),
     h("p", { class: "body-l var" }, "Your report is ready. It stays private until you apply to an internship."),
     verified.map((x) => VB.banner(`This viva also verified your hackathon: ${RESULT_LABEL[x.result]} at ${x.event} ${x.year}.`, { kind: "ok", iconName: "emoji_events" })),
@@ -814,6 +828,7 @@ async function apply(m) {
   if (!ok || !box.checked) return;
   try {
     await api("/api/apply", { method: "POST", body: { student_id: me.id(), listing_id: m.listing_id, share_consent: true } });
+    justApplied.add(m.listing_id);
     VB.snackbar(`Applied to ${m.venture}. They can now see your report.`);
   } catch (e) {
     if (e.code !== "ALREADY_APPLIED") VB.snackbar(e.message);
@@ -821,7 +836,12 @@ async function apply(m) {
   render();
 }
 
-const applyAction = (m) => (m.applied ? chip("Applied", "strong", "check_circle") : button("Apply", { iconName: "work", onclick: () => apply(m) }));
+const justApplied = new Set(); // the stamp lands once, right after applying
+const applyAction = (m) => {
+  if (!m.applied) return button("Apply", { iconName: "work", onclick: () => apply(m) });
+  const fresh = justApplied.delete(m.listing_id);
+  return VB.stampApplied(fresh);
+};
 
 async function loadReport() {
   const [r, listings] = await Promise.all([api(`/api/report/${enc(me.id())}`), api("/api/listings").then((x) => x.listings).catch(() => [])]);
@@ -857,17 +877,10 @@ async function showReport(token) {
   paint(token, VB.loadingView("Loading your report…"));
   const { r, byId } = await loadReport();
   if (r.status !== "done") return notYet(token, "Your report");
-  const repos = [...new Set(r.evidence.map((e) => e.repo_full_name))];
   paint(token,
-    h("div", { class: "section" },
-      h("div", { class: "passport" },
-        h("div", { class: "passport-who" },
-          h("div", { class: "passport-id" }, VB.avatar(r.student.github_username, "lg"),
-            h("div", {}, h("h1", { class: "headline-m" }, r.student.name), h("div", { class: "li-meta body-m" }, h("span", {}, r.student.college), h("span", {}, `@${r.student.github_username}`)))),
-          h("div", { class: "chips" }, chip("Verified by viva", "primary", "verified"), repos.map((x) => chip(repoName(x), "fact", "code")))),
-        VB.scoreBadge(r.overall, 120))),
+    h("div", { class: "section" }, VB.credential(r, "you")),
     section("Verified skills", h("p", { class: "section-note" }, "From your answers. 70 and up is strong, 40 to 69 partial."), VB.skillStamps(r.skills)),
-    section("You said, you showed", h("p", { class: "section-note" }, "Only what you showed counts toward matches."), VB.claimsList(r.claimed_vs_verified, "you")),
+    section("Resume → viva", h("p", { class: "section-note" }, "+ means you showed it without claiming it. − means it's on your resume but this viva didn't show it, so it doesn't count yet."), VB.claimsList(r.claimed_vs_verified, "you")),
     section("Internships for you", h("div", { class: "matches" }, r.matches.slice(0, 3).map((m, i) => VB.matchCard(m, byId[m.listing_id], { top: i === 0 && m.match > 0, action: applyAction(m) })),
       h("div", {}, button("See all internships", { href: "#/internships", kind: "text", iconAfter: "arrow_forward" })))),
     r.hackathons.length ? section("Your hackathons", VB.hackathonList(r.hackathons, "you")) : null,
