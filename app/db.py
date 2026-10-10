@@ -3,7 +3,7 @@
 With no SUPABASE_URL / SUPABASE_SERVICE_KEY set, an in-memory store stands in, so local runs and
 tests work with no setup. In-memory data is lost on restart, so the deployed app must use Supabase.
 
-The rest of the app only uses the functions at the bottom: insert, get, select, update, upsert.
+The rest of the app only uses the functions at the bottom: insert, get, select, update, delete, upsert.
 """
 
 import copy
@@ -66,6 +66,13 @@ class _Memory:
                 if r["id"] == id:
                     r.update(copy.deepcopy(fields))
 
+    def delete(self, table, id):
+        with self.lock:
+            rows = self.tables.get(table, [])
+            before = len(rows)
+            self.tables[table] = [r for r in rows if r["id"] != id]
+            return before != len(self.tables[table])
+
     def upsert(self, table, rows):
         with self.lock:
             existing = {r["id"]: r for r in self.tables.setdefault(table, [])}
@@ -113,6 +120,9 @@ class _Supabase:
     def update(self, table, id, fields):
         self._send("PATCH", table, params={"id": f"eq.{id}"}, body=fields, prefer="return=minimal")
 
+    def delete(self, table, id):
+        return bool(self._send("DELETE", table, params={"id": f"eq.{id}"}, prefer="return=representation"))
+
     def upsert(self, table, rows):
         self._send("POST", table, body=rows, prefer="resolution=merge-duplicates,return=minimal")
 
@@ -142,6 +152,11 @@ def get(table: str, id: str) -> dict | None:
 
 def update(table: str, id: str, **fields) -> None:
     _store.update(table, id, fields)
+
+
+def delete(table: str, id: str) -> bool:
+    """Delete one row by id. Returns False if there was no such row."""
+    return _store.delete(table, id)
 
 
 def upsert(table: str, rows: list[dict]) -> None:
