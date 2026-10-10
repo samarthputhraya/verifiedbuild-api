@@ -300,6 +300,63 @@ const VB = (() => {
     return h("div", { class: "scanner", "aria-hidden": "true" }, h("div", { class: "scanner-rows" }, draw(), draw()));
   }
 
+  // A run as stages, like a CI pipeline. state: queued, run, pass, part, fail or done (answered, no score shown)
+  function pipeline(stages, { row = false, tests = false, label } = {}) {
+    const mark = (st, i) => (st.state === "pass" || st.state === "done" ? icon("check")
+      : st.state === "fail" ? icon("close") : st.state === "part" ? "~" : String(i + 1));
+    return h("ol", { class: `pipeline${row ? " across" : ""}${tests ? " tests" : ""}`, "aria-label": label || null },
+      stages.map((st, i) => h("li", { class: `stage ${st.state}`, "aria-label": st.aria || null },
+        h("span", { class: "node", "aria-hidden": "true" }, mark(st, i)),
+        h("span", { class: "what" }, st.label ? h("b", {}, st.label) : null, st.sub ? h("small", {}, st.sub) : null),
+        st.when ? h("span", { class: "when" }, st.when) : null)));
+  }
+  const RUN_STATE = { strong: "pass", partial: "part", not_verified: "fail", not_shown: "queued" };
+
+  // A build badge, as on a README: skill on the left, result on the right
+  const SHORT_LEVEL = { strong: "strong", partial: "partial", not_verified: "not verified", not_shown: "not shown" };
+  function badge(key, value, level) {
+    return h("span", { class: `badge ${level}` }, h("span", { class: "k" }, key), h("span", { class: "v" }, value));
+  }
+  function skillBadges(skills, { lg = false, cascade = false, only = null, delay = 1300 } = {}) {
+    const rows = TAGS.map(([tag, name]) => ({ tag, name, score: skills[tag] }))
+      .sort((a, b) => (b.score ?? -1) - (a.score ?? -1))
+      .filter((x) => !only || only(x));
+    return h("div", { class: `badges${lg ? " lg" : ""}${cascade ? " cascade" : ""}`, role: "list", "aria-label": "Verified skills" },
+      rows.map((x, i) => {
+        const level = levelOf(x.score);
+        const b = badge(x.name.toLowerCase(), x.score === undefined ? SHORT_LEVEL.not_shown : `${x.score} ${SHORT_LEVEL[level]}`, level);
+        b.setAttribute("role", "listitem");
+        if (cascade) b.style.animationDelay = `${delay + i * 110}ms`;
+        return b;
+      }));
+  }
+
+  // The match formula, split into its three parts: verified skills (60), interests (25) and verified hackathons (15).
+  // Skills and hackathons are recomputed here from the report; interests are what remains of the API's match.
+  const RESULT_WEIGHT = { winner: 1, finalist: 0.8, participant: 0.6 };
+  function matchBreakdown(m, listing, report) {
+    if (!listing || !report) return null;
+    const weights = Object.entries(listing.required_skills || {});
+    const total = weights.reduce((sum, [, w]) => sum + w, 0);
+    if (!total) return null;
+    const fit = weights.reduce((sum, [tag, w]) => sum + w * ((report.skills[tag] || 0) / 100), 0) / total;
+    const hack = Math.max(0, ...report.hackathons.filter((x) => x.verified && x.viva_score !== null).map((x) => (x.viva_score / 100) * (RESULT_WEIGHT[x.result] || 0)));
+    const skillPts = Math.round(60 * fit);
+    const hackPts = Math.round(15 * hack);
+    const intPts = m.match - skillPts - hackPts;
+    if (intPts < -1 || intPts > 26) return null; // doesn't add up, so show nothing rather than a wrong split
+    const parts = [["b-skill", "Skills", skillPts], ["b-int", "Interests", Math.max(0, intPts)], ["b-hack", "Hackathons", hackPts]];
+    const bar = h("div", { class: "breakdown-bar", "aria-hidden": "true" });
+    parts.forEach(([cls, , pts]) => { const sp = h("span", { class: cls }); sp.style.width = "0%"; bar.append(sp); requestAnimationFrame(() => requestAnimationFrame(() => { sp.style.width = `${pts}%`; })); });
+    return h("div", { class: "breakdown", role: "img", "aria-label": `Match ${m.match}: skills ${skillPts}, interests ${Math.max(0, intPts)}, hackathons ${hackPts}` },
+      bar, h("div", { class: "breakdown-key" }, parts.map(([cls, name, pts]) => h("span", {}, h("i", { class: cls }), `${name} ${pts}`))));
+  }
+
+  // One block per answer across the top of a record, coloured by its level
+  function statusRail(evidence) {
+    return h("div", { class: "status-rail", "aria-hidden": "true" }, evidence.map((e) => h("span", { class: levelOf(e.score * 10) })));
+  }
+
   function stampApplied(fresh) {
     return h("span", { class: `stamp-applied${fresh ? " fresh" : ""}` }, icon("check_circle"), "Applied");
   }
@@ -528,7 +585,7 @@ const VB = (() => {
     const repos = [...new Set(r.evidence.map((e) => e.repo_full_name))];
     const sid = r.student.student_id || r.student.id || r.student.github_username;
     return h("article", { class: "credential", "aria-label": "Verified skill record" },
-      guillocheStrip(r.student.github_username),
+      r.status === "done" ? statusRail(r.evidence) : h("div", { class: "status-rail" }),
       h("div", { class: "cred-head" }, h("span", { class: "title-m" }, "Verified skill record"), h("span", { class: "record-no" }, recordNo(sid))),
       h("div", { class: "cred-body" },
         h("div", { class: "holder" },
@@ -537,6 +594,7 @@ const VB = (() => {
               h("div", { class: "li-meta body-m" }, h("span", {}, r.student.college),
                 who === "you" ? h("span", {}, `@${r.student.github_username}`) : h("a", { href: githubUser(r.student.github_username), target: "_blank", rel: "noopener noreferrer" }, `@${r.student.github_username}`)))),
           h("div", { class: "chips" }, repos.map((x) => chip(repoName(x), "fact", "code"))),
+          r.status === "done" ? skillBadges(r.skills, { lg: true }) : null,
           extra || null),
         r.status === "done" ? scoreSeal(r, 196) : seal({ empty: true, size: 150, seed: r.student.github_username, center: h("span", { class: "of" }, "Not verified yet") })),
       h("div", { class: "cred-foot" },
@@ -636,7 +694,7 @@ const VB = (() => {
   }
 
   // An internship match as a ticket: the match on the stub, the role and the reason on the right
-  function matchCard(m, listing, { top, action } = {}) {
+  function matchCard(m, listing, { top, action, report } = {}) {
     return h("div", { class: `match-card${top ? " top" : ""}` },
       h("div", { class: "ticket-stub", role: "img", "aria-label": `${m.match}% match` },
         h("span", { class: "pct" }, String(m.match), h("small", {}, "%")), h("span", { class: "lbl" }, "match")),
@@ -644,6 +702,7 @@ const VB = (() => {
         h("div", { class: "title-m" }, m.title),
         h("div", { class: "body-m var" }, listing && listing.description ? `${m.venture}. ${listing.description}` : m.venture),
         h("p", { class: "why" }, m.why),
+        matchBreakdown(m, listing, report),
         action ? h("div", { class: "actions" }, action) : null));
   }
 
@@ -659,6 +718,7 @@ const VB = (() => {
     h, s, enc, githubUser, githubRepo, levelOf, pct, repoName, count, ago, ApiError, api, store,
     icon, shape, shapePath, brandMark, avatar, ring, wavy, spinner, loadingView, stepsBar,
     seal, sealScore, scoreSeal, credential, recordNo, guillocheStrip, scanner, stampApplied,
+    pipeline, RUN_STATE, badge, skillBadges, matchBreakdown, statusRail,
     chip, levelChip, filterChips, button, textField, selectField, banner, snackbar, confirm,
     highlight, codeBlock, skillStamps, claimsList, hackathonList, scoreDots, evidenceSheet, buildHistory, matchCard, watchScroll,
   };

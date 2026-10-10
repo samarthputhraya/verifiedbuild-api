@@ -1,8 +1,9 @@
-/* VerifiedBuild web: "the credential".
-   A verified profile is a document, so the look borrows from security printing: paper and ink, fine guilloche
-   line-work, record numbers and ink stamps. The one bright thing is the holographic seal, drawn from each
-   student's own scores (common.js, seal()), whose foil shifts when the phone tilts or the mouse moves.
-   The student's code always sits in a dark editor. Type: Bricolage Grotesque and JetBrains Mono (both OFL). */
+/* VerifiedBuild web: "skills, run like a build".
+   A student's skill lives in their code, so the product looks like the place code gets checked: a CI run.
+   The repo goes in, the 5 viva questions run as tests (the pipeline), verified skills come out as build badges,
+   each internship match shows its formula, and the record is signed with a seal drawn from the student's own
+   scores (common.js, seal()), whose foil follows tilt or the mouse. Code sits in a dark editor.
+   Type: Bricolage Grotesque and JetBrains Mono (both OFL). */
 
 @font-face { font-family: "Bricolage Grotesque"; src: url("/fonts/bricolage-grotesque.woff2") format("woff2"); font-weight: 200 800; font-stretch: 75% 100%; font-display: swap; }
 @font-face { font-family: "JetBrains Mono"; src: url("/fonts/jetbrains-mono.woff2") format("woff2"); font-weight: 100 800; font-display: swap; }
@@ -10,8 +11,10 @@
 
 :root {
   /* Paper and ink */
-  --paper: #eff2ee; --card: #fbfcfa; --card-2: #e5eae4; --line: #cdd5cd; --line-2: #b3beb4;
-  --ink: #0e1a2b; --ink-2: #47566a; --ink-3: #75818f;
+  --paper: #f1f3f7; --card: #ffffff; --card-2: #e8ecf2; --line: #d3d9e2; --line-2: #b4bdca;
+  --ink: #0d1626; --ink-2: #48546a; --ink-3: #79849a;
+  /* Run states, as in a CI pipeline */
+  --run: #2f5bea; --pass: #138a52; --part: #c07a10; --fail: #c8372d; --skip: #8b95a7;
   --accent: #172d77; --on-accent: #ffffff; --accent-soft: #dce3f6; --on-accent-soft: #172d77; --focus: #3557e0;
   /* Ink colours for the four levels, each with a light wash */
   --ok: #0a7446; --ok-bg: #d8efe2; --warn: #9a5800; --warn-bg: #f5e5cc; --bad: #b0281c; --bad-bg: #f6dcd8; --none: #66727e; --none-bg: #e1e6e1;
@@ -35,8 +38,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --paper: #0b1016; --card: #111821; --card-2: #18212c; --line: #26313d; --line-2: #354352;
+    --paper: #0a0f17; --card: #111823; --card-2: #19212e; --line: #263040; --line-2: #364356;
     --ink: #e6ebee; --ink-2: #a2aeb9; --ink-3: #788593;
+  --run: #7d9bff; --pass: #45c98b; --part: #e9a93f; --fail: #ff7b70; --skip: #7d889a;
     --accent: #c8d3ff; --on-accent: #0b1a4d; --accent-soft: #1d2a4f; --on-accent-soft: #c8d3ff; --focus: #8ea6ff;
     --ok: #4fd59a; --ok-bg: #0f2c20; --warn: #f0b455; --warn-bg: #31230c; --bad: #ff8a7f; --bad-bg: #381714; --none: #95a1ab; --none-bg: #1b242e;
     --foil-1: #4fd8e8; --foil-2: #9a8cff; --foil-3: #ff7cc4; --foil-4: #ffc861; --foil-5: #55e3a6;
@@ -47,8 +51,9 @@
   }
 }
 :root[data-theme="dark"] {
-  --paper: #0b1016; --card: #111821; --card-2: #18212c; --line: #26313d; --line-2: #354352;
+  --paper: #0a0f17; --card: #111823; --card-2: #19212e; --line: #263040; --line-2: #364356;
   --ink: #e6ebee; --ink-2: #a2aeb9; --ink-3: #788593;
+  --run: #7d9bff; --pass: #45c98b; --part: #e9a93f; --fail: #ff7b70; --skip: #7d889a;
   --accent: #c8d3ff; --on-accent: #0b1a4d; --accent-soft: #1d2a4f; --on-accent-soft: #c8d3ff; --focus: #8ea6ff;
   --ok: #4fd59a; --ok-bg: #0f2c20; --warn: #f0b455; --warn-bg: #31230c; --bad: #ff8a7f; --bad-bg: #381714; --none: #95a1ab; --none-bg: #1b242e;
   --foil-1: #4fd8e8; --foil-2: #9a8cff; --foil-3: #ff7cc4; --foil-4: #ffc861; --foil-5: #55e3a6;
@@ -689,6 +694,8 @@ dialog .actions { justify-content: flex-end; margin-top: 0.5rem; }
 .rank { width: 1.5rem; text-align: center; font-family: var(--font-code); font-weight: 600; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .mini-skills { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.3rem; }
 .mini-skills .chip { min-height: 1.25rem; padding: 0 0.4rem; font-size: 0.6875rem; }
+.mini-skills .badge { height: 1.25rem; line-height: 1.25rem; font-size: 0.6875rem; }
+.mini-skills .badge > span { padding: 0 0.35rem; }
 .cand-match { display: grid; justify-items: end; gap: 0; }
 .cand-match .pct { font-size: 1.5rem; line-height: 1; font-weight: 800; font-stretch: 76%; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .cand-match .lbl { font-size: 0.6875rem; color: var(--ink-3); }
@@ -739,3 +746,87 @@ dialog .actions { justify-content: flex-end; margin-top: 0.5rem; }
   .scanner-rows, .scanner::before { animation: none; }
   .seal.draw .band { stroke-dashoffset: 0; }
 }
+
+/* ---------- The pipeline: stages of a run, each with a state ---------- */
+
+.pipeline { position: relative; display: grid; gap: 0; list-style: none; margin: 0; padding: 0; }
+.stage { position: relative; display: grid; grid-template-columns: 2rem minmax(0, 1fr) auto; gap: 0.75rem; align-items: start; padding: 0.5rem 0; }
+.stage .node {
+  position: relative; z-index: 1; display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%;
+  background: var(--card); color: var(--skip); box-shadow: inset 0 0 0 2px var(--line-2); font-family: var(--font-code); font-size: 0.8125rem; font-weight: 700;
+  transition: background-color 300ms, box-shadow 300ms, color 300ms;
+}
+.stage .node .icon { font-size: 1.15rem; font-variation-settings: "FILL" 0, "wght" 600, "GRAD" 0, "opsz" 24; }
+.stage + .stage::before { content: ""; position: absolute; left: calc(1rem - 1px); top: -0.5rem; height: 1rem; width: 2px; background: var(--line-2); }
+.stage .what { display: grid; gap: 0.05rem; padding-top: 0.3rem; min-width: 0; }
+.stage .what b { font-weight: 640; }
+.stage .what small { color: var(--ink-2); font-size: 0.8125rem; line-height: 1.15rem; }
+.stage .when { padding-top: 0.4rem; font-family: var(--font-code); font-size: 0.75rem; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.stage.run .node { color: var(--run); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--run) 25%, transparent); }
+.stage.run .node::after { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 2px solid transparent; border-top-color: var(--run); border-right-color: var(--run); animation: spin 0.9s linear infinite; }
+.stage.run + .stage::before { background: repeating-linear-gradient(180deg, var(--run) 0 4px, transparent 4px 8px); background-size: 100% 16px; animation: flow 0.6s linear infinite; }
+.stage.pass .node, .stage.part .node, .stage.fail .node, .stage.done .node { color: #fff; box-shadow: none; animation: node-in 420ms cubic-bezier(0.3, 1.5, 0.5, 1); }
+.stage.pass .node { background: var(--pass); } .stage.part .node { background: var(--part); } .stage.fail .node { background: var(--fail); }
+.stage.done .node { background: var(--ink); color: var(--paper); }
+.stage.pass + .stage::before, .stage.part + .stage::before, .stage.fail + .stage::before, .stage.done + .stage::before { background: var(--ink-3); }
+.stage.queued .what b { color: var(--ink-2); font-weight: 560; }
+@keyframes flow { to { background-position: 0 16px; } }
+@keyframes node-in { from { transform: scale(0.6); } }
+
+/* Horizontal pipeline (wide screens and the compact viva bar) */
+.pipeline.across { grid-auto-flow: column; grid-auto-columns: 1fr; }
+.pipeline.across .stage { grid-template-columns: 1fr; justify-items: center; text-align: center; gap: 0.4rem; padding: 0; }
+.pipeline.across .stage + .stage::before { left: calc(-50% + 1rem + 4px); right: calc(50% + 1rem + 4px); width: auto; top: calc(1rem - 1px); height: 2px; }
+.pipeline.across .stage.run + .stage::before { background: repeating-linear-gradient(90deg, var(--run) 0 4px, transparent 4px 8px); background-size: 16px 100%; animation: flow-x 0.6s linear infinite; }
+.pipeline.across .stage .what { padding: 0; justify-items: center; }
+.pipeline.across .stage .when { padding: 0; }
+@keyframes flow-x { to { background-position: 16px 0; } }
+.pipeline.tests .stage .node { width: 1.75rem; height: 1.75rem; font-size: 0.75rem; }
+.pipeline.tests .stage + .stage::before { top: calc(0.875rem - 1px); left: calc(-50% + 0.875rem + 4px); right: calc(50% + 0.875rem + 4px); }
+.pipeline.tests .stage .what small { font-size: 0.6875rem; }
+
+/* The run card: a CI job */
+.run-card { display: grid; gap: 0.75rem; padding: 1rem 1.125rem 1.125rem; border-radius: var(--r-xl); background: var(--card); box-shadow: inset 0 0 0 1px var(--line), var(--shadow); }
+.run-head { display: flex; align-items: center; gap: 0.625rem; padding-bottom: 0.75rem; box-shadow: inset 0 -1px 0 var(--line); min-width: 0; }
+.run-head .brand-mark { width: 1.5rem; height: 1.5rem; }
+.run-head .mono { font-size: 0.875rem; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.run-head .status { margin-left: auto; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8125rem; font-weight: 640; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.run-head .status.run { color: var(--run); } .run-head .status.pass { color: var(--pass); }
+.run-head .status .dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: currentColor; }
+.run-head .status.run .dot { animation: blink 1.2s ease-in-out infinite; }
+.run-card .scanner { height: 9rem; }
+
+/* Build badges, as on a README */
+.badges { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.badge { display: inline-flex; align-items: stretch; height: 1.5rem; border-radius: 4px; overflow: hidden; font-family: var(--font-code); font-size: 0.75rem; line-height: 1.5rem; white-space: nowrap; box-shadow: 0 1px 0 rgb(0 0 0 / 0.08); }
+.badge > span { padding: 0 0.5rem; }
+.badge .k { background: #2b3445; color: #fff; }
+.badge .v { background: var(--skip); color: #fff; font-weight: 700; }
+.badge.strong .v { background: var(--pass); } .badge.partial .v { background: var(--part); } .badge.not_verified .v { background: var(--fail); }
+.badge.not_shown .v { background: color-mix(in srgb, var(--skip) 35%, var(--card-2)); color: var(--ink); font-weight: 500; }
+.badges.lg .badge { height: 1.875rem; line-height: 1.875rem; font-size: 0.875rem; border-radius: 5px; }
+.badges.lg .badge > span { padding: 0 0.65rem; }
+.badges.cascade .badge { animation: badge-in 420ms var(--ease-out) both; }
+@keyframes badge-in { from { transform: translateY(6px); opacity: 0; } }
+
+/* The match formula, as three parts of one bar */
+.breakdown { display: grid; gap: 0.35rem; margin-top: 0.35rem; }
+.breakdown-bar { display: flex; height: 0.5rem; border-radius: 2px; overflow: hidden; background: var(--card-2); }
+.breakdown-bar > span { display: block; height: 100%; transition: width 900ms var(--ease-out); }
+.b-skill { background: var(--ink); } .b-int { background: var(--foil-2); } .b-hack { background: var(--foil-4); }
+.breakdown-key { display: flex; flex-wrap: wrap; gap: 0.15rem 0.875rem; font-size: 0.75rem; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.breakdown-key i { display: inline-block; width: 0.55rem; height: 0.55rem; border-radius: 2px; margin-right: 0.3rem; }
+
+/* The status rail across the top of a record: one block per answer, coloured by its level */
+.status-rail { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px; margin: 0 -1.5rem; height: 0.4rem; }
+.status-rail span { background: var(--skip); }
+.status-rail .strong { background: var(--pass); } .status-rail .partial { background: var(--part); } .status-rail .not_verified { background: var(--fail); }
+
+.run-done { display: grid; gap: 1.25rem; justify-items: center; text-align: center; padding-top: 1rem; }
+.run-done .run-card { width: 100%; text-align: left; }
+.landing-art .run-card { width: min(100%, 30rem); }
+
+@media (max-width: 599px) {
+  .status-rail { margin: 0 -1.125rem; }
+}
+@media (prefers-reduced-motion: reduce) { .stage.run .node::after, .stage.run + .stage::before { animation: none; } }
