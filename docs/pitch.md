@@ -28,7 +28,7 @@ Use the student whose story is clearest. If a founder or recruiter at the event 
 | Time | Who | What to say |
 |---|---|---|
 | 0:00–0:30 | SAM | The opening above. |
-| 0:30–0:50 | SAM | "Today recruiters filter on resume keywords, CGPA and GitHub stars. Coding tests are generic, and AI can solve those too. None of it asks: do you understand the code you're showing me? VerifiedBuild does, in five minutes." |
+| 0:30–0:50 | SAM | "Today recruiters filter on resume keywords, CGPA and GitHub stars. A hackathon win on a resume is taken on trust, and in a team of four nobody can tell who built what. Coding tests are generic, and AI can solve those too. None of it asks: do you understand the code you're showing me? VerifiedBuild does, in five minutes." |
 | 0:50–2:00 | Ayush | The demo path below. Say out loud what the judge should notice. |
 | 2:00–2:30 | SAM | "The hard part is making the questions about real code and the scoring fair. Every question points at real lines in the student's repo: we check the lines exist and cut the snippet from the file ourselves. The answer is scored against a rubric that never leaves our server. Spoken and typed answers go through the same scoring step, and the language doesn't matter: a Hinglish answer scored the same 10/10 as English. The match score itself uses no AI. It's a formula we can show you, and claimed skills count for zero." |
 | 2:30–3:00 | SAM | "[Who pays, from section 7.] Next we'd [one thing from the 30-day answer]. [Name] now has a profile that says: backend, verified, 81, with [Name]'s own words as evidence. That's what gets [Name] the reply." |
@@ -47,8 +47,9 @@ Prepare before going on stage:
 | 2 | Start the viva. Wait about 15 s while it reads the repo | "It's reading the repo now: it drops the libraries and generated code and picks the files that matter. ... Notice the question: it names a real function, and the code shown is lines [x–y] of the actual file." |
 | 3 | Answer question 1 by voice, live (one sentence in Hinglish is fine) | "[Name] answers out loud, in whatever language they think in. No score yet, on purpose: they see it at the end." |
 | 4 | Tab B: the report | "Here's [Name]'s finished viva from this morning. They claimed React, and the repo didn't show it, so it says not shown. They didn't claim security, but they showed it. Every score has their own words as evidence." |
-| 5 | Scroll to matches | "Matches use verified skills only. [Top match] is [N]%, and the line under it says why in plain numbers." |
-| 6 | Tab C: the shortlist | "The recruiter only sees students who applied, with consent. They're ranked by verified match, and one click exports a CSV." |
+| 5 | Scroll to hackathons | "[Name] listed [hackathon]. It shows as verified because the viva was on that team repo, and the questions were about the files [Name] committed, not the teammates' code." |
+| 6 | Scroll to matches | "Matches use verified skills and verified hackathons only. [Top match] is [N]%, and the line under it says why in plain numbers." |
+| 7 | Tab C: the shortlist | "The recruiter only sees students who applied, with consent. They're ranked by verified match, and one click exports a CSV." |
 
 **Notice for the judges:** real line numbers (step 2), the language doesn't matter (step 3), claimed vs verified (step 4), the reason under each match (step 5).
 
@@ -78,6 +79,9 @@ A weak first answer gets a follow-up, and the better score counts. The recruiter
 
 **Can't a student just read an answer from ChatGPT?**
 Answers are timed and spoken, and they're about specific lines of the student's own code, with a follow-up when an answer is vague. We show the recruiter how each answer was given (voice or typed, and whether text was pasted) as plain facts, and we never accuse anyone.
+
+**Hackathon projects are team projects. How do you know what this student did?**
+On a team repo we read the student's own commits and ask only about the files they changed, so the viva is about their part. Their share of commits is shown as a plain fact, and the hackathon only counts toward a match after they pass that viva.
 
 **Isn't scoring spoken English unfair to some students?**
 The scorer is told to ignore language, accent and grammar and to score only understanding. A correct Hinglish answer scored 10/10, the same as English, and Telugu and Hindi answers are accepted.

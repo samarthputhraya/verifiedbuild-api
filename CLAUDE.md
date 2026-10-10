@@ -68,6 +68,7 @@ app/viva.py            question generation, answer evaluation, follow-up logic
 app/report.py          scores, verified levels, claimed vs verified, evidence
 app/matching.py        deterministic match score + "why" template
 app/applications.py    apply, recruiter shortlist, CSV
+app/hackathons.py      hackathon entries (claims until a viva on their repo verifies them)
 app/db.py              Supabase REST (PostgREST) with httpx; in-memory store when Supabase isn't set
 app/demo_cache.py      DEMO_MODE=cached responses; `python -m app.demo_cache <session_id>` saves one
 scripts/stats.py       numbers for the pitch, from the live database
@@ -75,7 +76,8 @@ seed/listings.json     the 6 listings, loaded into the database on every start
 seed/demo_cache/       saved demo repos (DEMO_MODE=cached)
 tests/                 offline tests: full flow against examples/*.json shapes, scoring rules
 examples/*.json        one sample response per endpoint, copied from API_CONTRACT.md
-supabase/schema.sql    tables, unique keys, row-level security
+supabase/schema.sql    tables, unique keys, row-level security (fresh install)
+supabase/migrations/   changes to run on an existing database, in order
 Dockerfile             python:3.11-slim + apt ffmpeg, uvicorn on $PORT
 requirements.txt       fastapi, uvicorn[standard], httpx, pydantic, google-genai (requirements-dev.txt adds pytest)
 .env.example, README.md, API_CONTRACT.md, CLAUDE.md
@@ -150,7 +152,7 @@ requirements.txt       fastapi, uvicorn[standard], httpx, pydantic, google-genai
   - Store `mode`, `duration_s`, `pasted` and `is_follow_up` with each answer.
 
 ### 5. Report — `GET /api/report/{student_id}` (computed on read; no profiles table)
-- Use the student's latest session.
+- Combine all finished vivas: the latest finished viva on each repo counts, and redoing a repo replaces its old viva.
 - `overall` = round(mean of final question scores × 10).
 - `skills[tag]` = round(mean final score of that tag's questions × 10). Include only the tags that were asked.
 - **Levels:**
@@ -165,10 +167,12 @@ requirements.txt       fastapi, uvicorn[standard], httpx, pydantic, google-genai
 ```
 skill_fit        = Σ_t w_t × (skills.get(t, 0) / 100)  /  Σ_t w_t      # verified skills only
 interest_overlap = |interests ∩ tags| / |interests ∪ tags|              # Jaccard
-match            = round(100 × (0.7 × skill_fit + 0.3 × interest_overlap))
+hackathon        = best verified entry: viva_score / 100 × result weight (winner 1.0, finalist 0.8, participant 0.6)
+match            = round(100 × (0.6 × skill_fit + 0.25 × interest_overlap + 0.15 × hackathon))
 ```
 - `why` is a template built from the numbers, e.g. `"Verified backend 81 covers 60% of this role; shared interests: saas."`
-- Claimed-only skills never count toward a match. Only verified ones do. That is the product.
+- Claimed-only skills and unverified hackathons never count toward a match. Only verified ones do. That is the product.
+- A hackathon entry is verified when the student finishes a viva on its repo. On a team repo (someone else owns it, or more than one author), the questions are about the files the student changed, taken from their own commits.
 
 ### 7. Apply + recruiter
 - `POST /api/apply`:

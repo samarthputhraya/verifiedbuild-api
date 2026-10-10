@@ -16,9 +16,15 @@ We don't try to tell who wrote the code, and using AI to build is fine. We measu
 3. **Analyze** (`app/github_ingest.py`, `app/viva.py`). We download the repo in one request and drop lockfiles, build output, vendored, minified and generated code. Files are ranked by how often other files import them and by size, and we keep up to 12 (about 60,000 characters). Gemini writes 5 questions (2 easy, 2 medium, 1 hard) about real line ranges, each with a private rubric of 3–4 points. We check every question points at a file we sent and lines that exist, and we cut the code snippet from the real file ourselves, so the student always sees real code.
 4. **Answer.** Voice is converted to 16 kHz wav with ffmpeg and transcribed. Typed and spoken answers are then scored by the same step: Gemini compares the answer with the rubric and the code and returns a 0–10 score, the points covered and missed, and a quote copied word for word from the answer. If the first answer scores under 6, the student gets one follow-up question, and the question's score is the better of the two.
 5. **Report** (`app/report.py`). Each skill score is the mean of its questions × 10. Levels: strong ≥70, partial 40–69, not verified <40, not shown if the repo had no question on it. Claimed skills sit next to verified ones, and skills the repo shows that the student didn't claim are listed too.
-6. **Match** (`app/matching.py`). No AI here, so every number can be explained:
-   `match = round(100 × (0.7 × skill_fit + 0.3 × interest_overlap))`, where `skill_fit` is the listing-weighted mean of the student's verified skill scores and `interest_overlap` is the Jaccard overlap of their interests with the listing's tags. Claimed-only skills count for nothing.
-7. **Apply and shortlist** (`app/applications.py`). Applying needs a finished viva and a consent tick. Only then does that one recruiter see the report. The shortlist ranks applicants by match, then overall score, and exports to CSV.
+6. **Hackathons** (`app/hackathons.py`). Students list hackathons: event, result, team size and the project repo. An entry is only a claim until the student finishes a viva on that repo. On a team repo, such as a teammate's, the questions are about the files the student changed, taken from their own commits, so they're asked about their part.
+7. **Match** (`app/matching.py`). No AI here, so every number can be explained:
+   `match = round(100 × (0.6 × skill_fit + 0.25 × interest_overlap + 0.15 × hackathon))`.
+   - `skill_fit` is the listing-weighted mean of the student's verified skill scores.
+   - `interest_overlap` is the Jaccard overlap of their interests with the listing's tags.
+   - `hackathon` is the best verified entry's viva score × its result weight (winner 1.0, finalist 0.8, participant 0.6).
+
+   Claimed skills and unverified hackathons count for nothing.
+8. **Apply and shortlist** (`app/applications.py`). Applying needs a finished viva and a consent tick. Only then does that one recruiter see the report. The shortlist ranks applicants by match, then overall score, and exports to CSV.
 
 ## What we measured while building
 
