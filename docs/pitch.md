@@ -36,22 +36,23 @@ Use the student whose story is clearest. If a founder or recruiter at the event 
 ## 3. Demo path (Ayush drives, about 70 seconds)
 
 Prepare before going on stage:
-- **Tab A:** the sign-up screen, with [Name]'s details typed in and not yet submitted. [Name]'s repo must be public and under [Name]'s own GitHub account.
-- **Tab B:** a finished report for [Name], from a full viva [Name] did earlier (all 5 questions answered by [Name]).
-- **Tab C:** the recruiter shortlist for `l-promtal-backend`, with [Name] and 2–3 volunteers who applied. The admin passcode is already entered.
-- Phone recording the screen, as a backup.
+- **Phone 1 (mirrored to the projector):** the VerifiedBuild app on a fresh install, with a second student's details typed into sign-up but not submitted. That student's repo must be public.
+- **Phone 2, or Phone 1 after the live part:** signed in as [Name], with a finished viva and a verified hackathon, and **not yet applied to Promtal**.
+- **Laptop:** the recruiter dashboard at `https://verifiedbuild-api-215071922486.asia-south1.run.app/recruiter/`, signed in and open on the Promtal shortlist, with 2–3 volunteers who already applied.
+- The backup video, ready to play.
 
 | Step | Click | Say |
 |---|---|---|
-| 1 | Tab A: submit sign-up, then pick [repo] in the repo list | "[Name] signs up and picks their own project." |
-| 2 | Start the viva. Wait about 15 s while it reads the repo | "It's reading the repo now: it drops the libraries and generated code and picks the files that matter. ... Notice the question: it names a real function, and the code shown is lines [x–y] of the actual file." |
-| 3 | Answer question 1 by voice, live (one sentence in Hinglish is fine) | "[Name] answers out loud, in whatever language they think in. No score yet, on purpose: they see it at the end." |
-| 4 | Tab B: the report | "Here's [Name]'s finished viva from this morning. They claimed React, and the repo didn't show it, so it says not shown. They didn't claim security, but they showed it. Every score has their own words as evidence." |
+| 1 | Phone 1: submit sign-up, then pick [repo] in the repo list | "Let's verify someone live. They sign up and pick their own project." |
+| 2 | Start the viva. During the ~15 s wait, narrate. On "We read …", point at it | "It's reading the repo now: it drops libraries and generated code and keeps the files that matter. ... It read [N] files and found [skill]: here's the sentence of evidence, naming the file." |
+| 3 | "Start question 1", then answer it by voice, live (one sentence in Hinglish is fine) | "The question names a real function, and the code is lines [x–y] of their actual file. They answer out loud, in whatever language they think in. No score yet, on purpose." |
+| 4 | Phone 2: [Name]'s report | "Here's [Name]'s finished viva from this morning. They claimed React, and the repo didn't show it, so it says not shown. They didn't claim security, but they showed it. Every score has their own words as evidence." |
 | 5 | Scroll to hackathons | "[Name] listed [hackathon]. It shows as verified because the viva was on that team repo, and the questions were about the files [Name] committed, not the teammates' code." |
 | 6 | Scroll to matches | "Matches use verified skills and verified hackathons only. [Top match] is [N]%, and the line under it says why in plain numbers." |
-| 7 | Tab C: the shortlist | "The recruiter only sees students who applied, with consent. They're ranked by verified match, and one click exports a CSV." |
+| 7 | Phone 2: Apply to Promtal, tick consent | "[Name] applies, and agrees to share the report with this one company." |
+| 8 | Laptop: the Promtal shortlist, nobody touches it | "Watch the recruiter's screen." Within 5 seconds [Name] lands in the ranked list, highlighted. "Ranked by verified match. Click in, and every answer sits next to the exact code it was about. One click exports a CSV." |
 
-**Notice for the judges:** real line numbers (step 2), the language doesn't matter (step 3), claimed vs verified (step 4), the reason under each match (step 5).
+**Notice for the judges:** real line numbers (step 2), the language doesn't matter (step 3), claimed vs verified (step 4), verified hackathon on a team repo (step 5), the reason under each match (step 6), and the phone-to-laptop moment (step 8).
 
 Optional, if SAM is confident: run step 2 on our own repo, `verifiedbuild-api`, and let SAM answer one question about `app/matching.py` live. It shows the product checking its own builder. Only do it after SAM has done a full practice viva on it.
 
