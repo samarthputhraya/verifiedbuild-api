@@ -1,4 +1,4 @@
-# Handoff - 2026-10-11 03:45 IST, written by Claude session
+# Handoff - 2026-10-11 05:10 IST, written by Claude session
 
 ## Goal (one line)
 VerifiedBuild: 5-question viva on a student's own repo → verified skill profile → internship match → recruiter shortlist.
@@ -7,7 +7,7 @@ VerifiedBuild: 5-question viva on a student's own repo → verified skill profil
 Phone 1: sign up → pick repo → analyze (~15 s) → answer question 1 by voice. Phone 2: a finished report (claimed vs verified, evidence, verified hackathon, matches) → apply with consent. Laptop: the Promtal shortlist on `/recruiter/`, where the student appears within 5 s. Script and lines: `docs/pitch.md`.
 
 ## Works now (verified, with how it was verified)
-- Live on Cloud Run, revision 00015 (Supabase + Vertex AI). `/api/health` returns `v1.1`. Earlier looks, if ever needed: 00011 (Material 3), 00013 (build run).
+- Live on Cloud Run, revision 00016 (Supabase + Vertex AI). `/api/health` returns `v1.1`. Earlier looks, if ever needed: 00011 (Material 3), 00013 (build run).
 - **Web rebuilt as a plain product UI on React-style components (11 Oct, 03:40):** Preact + htm as ES modules (no build step), Inter, one blue, borders not shadows, skeleton/empty/error states, light and dark. SAM asked for a professional, Fortune-500-style product look and nothing decorative, after rejecting the Material 3, seal and build-run designs.
   - Verified locally with real GitHub and Gemini: 4-step sign-up with the live GitHub check, home, repo list, analyzing checklist, what we found, the viva with a typed answer, a follow-up, 9 answers to done, the report, apply with the consent box, a spoken answer through the real recorder (bars moved, transcript came back), the recruiter listings, shortlist with the detail pane, candidate page, phone and desktop widths with no sideways scroll, dark mode. Zero console errors throughout.
 - **Earlier Material 3 version (18:00), the same flows:**
@@ -41,13 +41,12 @@ Phone 1: sign up → pick repo → analyze (~15 s) → answer question 1 by voic
 - Nothing known broken.
 - Gemini's speed varies. On prod we saw analyze take 12 s and 30 s for the same repo, and one scoring took 19 s locally. Hence the 40 s / 25 s fallback rule in `docs/pitch.md`.
 - Unverified: `scripts/stats.py` numbers on real volunteers. Only 2 test vivas so far, at a median of $0.039 per viva, priced with third-party token rates.
-- Android app (Ayush, `trulyayush/KITSW`): still at the 12:39 push at 23:45, so the 23:00 cut-off passed and it is out of the demo.
-  - It never calls our API. It calls Gemini (key built into the app) and GitHub itself.
-  - Without Gemini it falls back to template questions and a score from answer length, with fixed praise text.
-  - Its sample data includes a recruiter named "Google Cloud", and one commit added 10,843 lines.
-  - The web app is the product.
+- **Bug sweep (05:00):** backend pyflakes clean, 22 tests pass, `scripts.stats` runs on live data. Web: fixed "Try again" after a failed repo read (it did nothing), the recruiter "Updating live" tag (never shown), and the install icons/manifest colours. Checked on a local server: stale profile → sign-up with the message, retry sends a second request, live tag on both recruiter pages and gone after sign-out.
+- **Android app (Ayush, `trulyayush/KITSW`), re-checked 04:45:** his 00:22 commit rewired it to our API and removed the direct Gemini/GitHub calls, the built-in key, the fake database and the invented text. Its API layer is byte-identical to `clients/android/` here; that code passed 79/79 checks against the live API (full viva, voice as m4a, follow-ups, hackathon, apply, resume). Not checked: whether the Compose screens compile; no Gradle wrapper in the repo and no Android SDK on this machine. PR `fix/recruiter-link-and-saved-note` on his repo sets the recruiter link and fixes the "We heard" note for typed answers; he merges it. Unused `firebase.ai` dependency and the 3D background remain.
+- **Live database at 05:00:** two profiles under samarthputhraya (00:24 "SNPSU" and 02:46 "snaj"), one finished viva on `gurugraph` with every answer at 0, one application. Not created by Claude. They pull `scripts.stats` down (median score 0) and show on the Promtal shortlist; SAM decides whether to delete them (`python` + the Supabase service key, or ask Claude).
 
 ## Next 3 steps (concrete, in order)
+0. Agreed plan (SAM, 05:00): no new features. Record the demo video on the live site, then write the PPT, then merge both repos into one and submit (`git subtree add --prefix=backend ... main` and `--prefix=frontend ...`, see CLAUDE.md).
 1. Pick the persona and fill every `[bracket]` in `docs/pitch.md` with real facts.
    - Give the persona a finished viva plus a verified hackathon.
    - Run `python -m app.demo_cache <session_id>` for their repo.
