@@ -4,37 +4,64 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; font-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'self'">
-  <meta name="theme-color" content="#eff2ee" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0b1016" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#13161b" media="(prefers-color-scheme: dark)">
   <meta name="description" content="Students answer 5 questions about their own GitHub code. Internships are matched, and applicants ranked, on the skills they show.">
   <title>VerifiedBuild</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="manifest" href="/app/manifest.webmanifest">
-  <link rel="preload" href="/fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/styles.css">
-  <script src="/common.js" defer></script>
-  <script src="/landing.js" defer></script>
 </head>
 <body>
-  <header class="app-bar" id="appbar">
-    <a class="brand" href="/"><img class="brand-mark" src="/favicon.svg" alt="">VerifiedBuild</a>
+  <header class="topbar">
+    <a class="brand" href="/"><svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="6" fill="#1f5eff"/><path d="M7.5 12.5l3 3 6-6.5" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>VerifiedBuild</a>
     <span class="spacer"></span>
-    <a class="btn text" href="/recruiter/">For recruiters</a>
+    <a class="btn ghost" href="/recruiter/">For recruiters</a>
+    <a class="btn" href="/app/">Verify my skills</a>
   </header>
   <main class="landing">
-    <section class="landing-hero">
-      <div class="fields">
-        <h1 class="display-l">Show what you can really build.</h1>
-        <p class="lede">Anyone can ship a project with AI now, so a repo alone doesn't show skill. Pick one of your GitHub repos and answer 5 questions about its code, out loud or typed, in any language. Internships are matched on what you show.</p>
-        <div class="actions">
-          <a class="btn lg" href="/app/">Verify my skills</a>
-          <a class="btn lg outlined" href="/recruiter/">Open the recruiter dashboard</a>
+    <section class="hero">
+      <h1 class="display">Internship matching on verified skills.</h1>
+      <p class="lead">Anyone can ship a project with AI now, so a repo alone doesn't show skill. VerifiedBuild reads a student's GitHub repo and asks them five questions about their own code, out loud or typed, in any language. Their answers become a skill report with evidence, and internships are matched on what they showed.</p>
+      <div class="actions">
+        <a class="btn lg" href="/app/">Verify my skills</a>
+        <a class="btn lg secondary" href="/recruiter/">Open the recruiter dashboard</a>
+      </div>
+    </section>
+    <div class="shot"><img src="/img/report.png" width="1200" height="760" alt="A student's VerifiedBuild report: an overall score, six skills with scores and levels, claimed versus verified skills, and internship matches." loading="eager"></div>
+
+    <section class="steps3" aria-label="How it works">
+      <div class="card"><span class="n">1</span><h2 class="h3">Pick a repo</h2><p class="small muted">A project from your own GitHub, or a team repo you committed to. We read the code that matters and skip libraries and generated files.</p></div>
+      <div class="card"><span class="n">2</span><h2 class="h3">Answer five questions</h2><p class="small muted">Each question points at real lines of your code. Speak or type, in English, Hindi, Telugu or a mix. About eight minutes.</p></div>
+      <div class="card"><span class="n">3</span><h2 class="h3">Get matched</h2><p class="small muted">Your answers become a skill report with evidence. Internships rank you on what you showed, and recruiters see it only when you apply.</p></div>
+    </section>
+
+    <section class="two-col" aria-label="For recruiters">
+      <div class="stack">
+        <h2 class="h1">For recruiters: a ranked shortlist, with the evidence.</h2>
+        <p class="lead">Applicants are ranked by a match score that uses verified skills, shared interests and verified hackathon results. Open any candidate to read each answer next to the exact code it was about. New applicants appear as they apply. Export the list as a CSV.</p>
+        <div class="actions"><a class="btn secondary" href="/recruiter/">Open the recruiter dashboard</a></div>
+      </div>
+      <div class="shot"><img src="/img/recruiter.png" width="1200" height="760" alt="The recruiter dashboard: applicants ranked by match, with the selected candidate's report beside the list." loading="lazy"></div>
+    </section>
+
+    <section class="two-col" aria-label="How scoring works">
+      <div class="stack">
+        <h2 class="h1">What's measured, and what isn't.</h2>
+        <p class="lead">Every question names a real file and line range. Answers are scored against a rubric and the code itself, from 0 to 10. Language, accent and grammar don't count. The match score is a formula, not a model: 60% verified skills, 25% shared interests, 15% verified hackathons. Claimed skills count for nothing until they're shown.</p>
+      </div>
+      <div class="card stack-sm">
+        <div class="h3">Measured in our test runs</div>
+        <div class="stats">
+          <div class="stat"><div class="k">Reading a repo</div><div class="v">about 13 s</div></div>
+          <div class="stat"><div class="k">Scoring one answer</div><div class="v">3–6 s</div></div>
+          <div class="stat"><div class="k">Same answer, scored 5 times</div><div class="v">±1 point</div></div>
+          <div class="stat"><div class="k">Hinglish vs English</div><div class="v">same score</div></div>
         </div>
       </div>
-      <div class="landing-art" id="art" aria-hidden="true"></div>
     </section>
-    <section class="how" id="how" aria-label="How it works"></section>
-    <footer class="landing-foot">
+
+    <footer class="foot">
       <span>Built at Tri-City AI-Thon 2026 for the Promtal track.</span>
       <a href="/docs">API documentation</a>
     </footer>
