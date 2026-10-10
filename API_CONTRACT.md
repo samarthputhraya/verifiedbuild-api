@@ -79,6 +79,7 @@ Response `201`:
 ```
 - `claimed_from` is `resume` or `chips`.
 - Errors: `GITHUB_USER_NOT_FOUND` (404), `RESUME_UNREADABLE` (422), `VALIDATION` (422).
+- `RESUME_UNREADABLE` covers every resume problem, and its `message` names the actual one: not a PDF, no readable text, not a resume (e.g. a letter), or no technical skills found. Show the message as is.
 
 ### 2. `GET /api/github/{username}/repos` — repo picker
 Public, non-fork, non-archived repos, newest push first, max 30.

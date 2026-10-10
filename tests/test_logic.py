@@ -160,3 +160,37 @@ def test_hedged_call_uses_whichever_answer_comes_first(monkeypatch):
     monkeypatch.setattr(gemini, "_call", lambda *a: fake_call(*a, [(0.2, RuntimeError("a")), (0, RuntimeError("b"))]))
     with pytest.raises(RuntimeError):
         gemini._hedged_call("m", [], None, {}, 0.1)
+
+
+@pytest.mark.parametrize("document, skills, message", [
+    ("not_resume", [], "That PDF doesn't look like a resume. Upload your resume, or pick your skills below."),
+    ("unreadable", [], "We couldn't read any text in that PDF. Try another copy of your resume, or pick your skills below."),
+    ("resume", [], "We read your resume but found no technical skills on it. Pick your skills below instead."),
+])
+def test_resume_errors_say_what_went_wrong(monkeypatch, document, skills, message):
+    import base64
+
+    from app import gemini, resume
+    from app.errors import ApiError
+
+    monkeypatch.setattr(gemini, "generate_json", lambda parts, schema, *, system, validate, **kw:
+                        (validate({"document": document, "claimed_skills": skills}), {}))
+    pdf = base64.b64encode(b"%PDF-1.4 test").decode()
+    with pytest.raises(ApiError) as e:
+        resume.from_pdf(pdf, "application/pdf")
+    assert e.value.code == "RESUME_UNREADABLE" and e.value.message == message
+    with pytest.raises(ApiError) as e:
+        resume.from_pdf(base64.b64encode(b"not a pdf").decode(), "application/pdf")
+    assert e.value.message.startswith("That file isn't a PDF")
+
+
+def test_resume_skills_are_cleaned(monkeypatch):
+    import base64
+
+    from app import gemini, resume
+
+    found = [{"name": " React ", "tag": "frontend"}, {"name": "react", "tag": "frontend"}, {"name": "SQL", "tag": "data"}]
+    monkeypatch.setattr(gemini, "generate_json", lambda parts, schema, *, system, validate, **kw:
+                        (validate({"document": "resume", "claimed_skills": found}), {}))
+    assert resume.from_pdf(base64.b64encode(b"%PDF-1.4").decode(), None) == [
+        {"name": "React", "tag": "frontend"}, {"name": "SQL", "tag": "data"}]
