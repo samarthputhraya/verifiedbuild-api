@@ -1,105 +1,29 @@
 "use strict";
-// VerifiedBuild recruiter dashboard. Plain JavaScript, no build step. The API serves this page,
-// so every call is same-origin. Text from the API is always inserted as text, never as HTML.
+// VerifiedBuild recruiter dashboard. Plain JavaScript, no build step, served by the API itself.
+// Shared rendering lives in /common.js (the VB object).
 
-const TAGS = [["backend", "Backend"], ["frontend", "Frontend"], ["data", "Data"], ["ai_ml", "AI/ML"], ["devops", "DevOps"], ["security", "Security"]];
-const TAG_NAME = Object.fromEntries(TAGS);
-const LEVEL_LABEL = { strong: "Strong", partial: "Partial", not_verified: "Not verified", not_shown: "Not shown" };
-const RESULT_LABEL = { winner: "Winner", finalist: "Finalist", participant: "Participant" };
-const INTEREST_LABEL = {
-  ai: "AI", data: "Data", web: "Web", mobile: "Mobile", saas: "SaaS", fintech: "FinTech", edtech: "EdTech",
-  hrtech: "HR-Tech", security: "Security", devtools: "Dev tools", growth: "Growth", healthcare: "Healthcare",
-};
+const { h, enc, chip, api: callApi, githubUser, levelOf, ago, TAGS, TAG_NAME, RESULT_LABEL, pct } = VB;
 const POLL_MS = 5000;
-const KEY_STORE = "vb_admin_key";
+const KEY = "vb_admin_key";
+const session = VB.store(window.sessionStorage);
 
 const app = document.getElementById("app");
 const signoutButton = document.getElementById("signout");
-const announcer = document.createElement("div");
-announcer.className = "sr-only";
-announcer.setAttribute("role", "status");
+const announcer = h("div", { class: "sr-only", role: "status" });
 document.body.append(announcer);
 
 let viewToken = 0; // bumps on every navigation, so a slow fetch or poll never paints over a newer view
 let pollTimer = null;
-let memoryKey = ""; // used when sessionStorage is blocked (e.g. some private windows)
 
-// ---------- Helpers ----------
-
-function h(tag, props, ...children) {
-  const el = document.createElement(tag);
-  for (const [k, v] of Object.entries(props || {})) {
-    if (v === null || v === undefined || v === false) continue;
-    if (k === "class") el.className = v;
-    else if (k.startsWith("on") && typeof v === "function") el.addEventListener(k.slice(2), v);
-    else el.setAttribute(k, v === true ? "" : String(v));
-  }
-  for (const c of children.flat(Infinity)) {
-    if (c === null || c === undefined || c === false) continue;
-    el.append(c instanceof Node ? c : document.createTextNode(String(c)));
-  }
-  return el;
-}
-
-const enc = encodeURIComponent;
-const githubUser = (u) => `https://github.com/${enc(u)}`;
-const githubRepo = (full) => `https://github.com/${full.split("/").map(enc).join("/")}`;
-const levelOf = (score) => (score === undefined || score === null ? "not_shown" : score >= 70 ? "strong" : score >= 40 ? "partial" : "not_verified");
-const pct = (x) => `${Math.round(x * 100)}%`;
-
-function ago(iso) {
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return "";
-  const s = Math.max(0, Math.round((Date.now() - t) / 1000));
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.round(s / 60)} min ago`;
-  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
-  return new Date(t).toLocaleDateString(undefined, { day: "numeric", month: "short" });
-}
-
-function getKey() {
-  try { return sessionStorage.getItem(KEY_STORE) || memoryKey; } catch { return memoryKey; }
-}
-function setKey(value) {
-  memoryKey = value;
-  try { sessionStorage.setItem(KEY_STORE, value); } catch { /* memory only */ }
-}
-function clearKey() {
-  memoryKey = "";
-  try { sessionStorage.removeItem(KEY_STORE); } catch { /* nothing stored */ }
-}
-
-class ApiError extends Error {
-  constructor(code, message, status) { super(message); this.code = code; this.status = status; }
-}
-
-async function api(path, { admin = false, raw = false } = {}) {
-  const headers = { Accept: raw ? "text/csv" : "application/json" };
-  if (admin) headers["X-Admin-Key"] = getKey();
-  let res;
-  try {
-    res = await fetch(path, { headers, cache: "no-store" });
-  } catch {
-    throw new ApiError("NETWORK", "Can't reach the VerifiedBuild API. Check the connection and try again.", 0);
-  }
-  if (!res.ok) {
-    let body = null;
-    try { body = await res.json(); } catch { /* not JSON */ }
-    const e = body && body.error;
-    throw new ApiError((e && e.code) || `HTTP_${res.status}`, (e && e.message) || "Something went wrong. Try again.", res.status);
-  }
-  return raw ? res : res.json();
-}
+const api = (path, opts = {}) => callApi(path, { ...opts, headers: opts.admin ? { "X-Admin-Key": session.get(KEY) || "" } : {} });
 
 function paint(token, ...nodes) {
   if (token !== viewToken) return false;
-  app.replaceChildren(...nodes);
+  app.replaceChildren(...nodes.flat().filter((n) => n !== null && n !== undefined && n !== false));
   return true;
 }
 
-function loading(text) {
-  return h("p", { class: "soft" }, text);
-}
+const loading = (text) => h("p", { class: "soft" }, text);
 
 function stopPolling() {
   if (pollTimer) clearInterval(pollTimer);
@@ -122,29 +46,7 @@ function startPolling(token, refresh, statusEl) {
   }, POLL_MS);
 }
 
-function chip(text, kind) {
-  return h("span", { class: `chip ${kind || ""}` }, text);
-}
-
-function levelChip(level) {
-  return chip(LEVEL_LABEL[level] || level, level);
-}
-
-function codeBlock(fileLabel, snippet, startLine) {
-  const lines = (snippet || "").split("\n");
-  return h("pre", { class: "code", tabindex: "0", "aria-label": `Code from ${fileLabel}` },
-    h("span", { class: "code-file" }, fileLabel),
-    lines.map((text, i) => h("span", { class: "code-line" },
-      h("span", { class: "code-ln" }, String(startLine + i)),
-      h("span", { class: "code-tx" }, text.length ? text : " "))));
-}
-
-function scoreBar(score) {
-  return h("div", { class: "score-bar", role: "img", "aria-label": `${score} out of 10` },
-    Array.from({ length: 10 }, (_, i) => h("span", { class: i < score ? "on" : "" })));
-}
-
-// ---------- Views ----------
+// ---------- Sign in ----------
 
 function showSignin(message) {
   ++viewToken;
@@ -159,13 +61,13 @@ function showSignin(message) {
       ev.preventDefault();
       button.disabled = true;
       error.hidden = true;
-      setKey(input.value.trim());
+      session.set(KEY, input.value.trim());
       try {
         await api("/api/admin/verify", { admin: true });
         location.hash = "#/";
         render();
       } catch (e) {
-        clearKey();
+        session.del(KEY);
         error.textContent = e.message;
         error.hidden = false;
         button.disabled = false;
@@ -183,7 +85,7 @@ function showSignin(message) {
 }
 
 function signOut(message) {
-  clearKey();
+  session.del(KEY);
   location.hash = "#/";
   showSignin(message);
 }
@@ -195,7 +97,7 @@ function showError(e) {
     h("div", {}, h("button", { onclick: () => render() }, "Try again"))));
 }
 
-// Internships, each with its applicants
+// ---------- Internships, each with its applicants ----------
 
 function listingRow(listing, shortlist) {
   const weights = Object.entries(listing.required_skills).sort((a, b) => b[1] - a[1]);
@@ -210,7 +112,7 @@ function listingRow(listing, shortlist) {
     h("div", { class: "weights", "aria-label": "Skills this role needs" },
       weights.map(([tag, w]) => h("div", { class: "weight" },
         h("span", {}, TAG_NAME[tag] || tag),
-        h("span", { class: "weight-track" }, (() => { const f = h("span", { class: "weight-fill" }); f.style.width = pct(w / total); f.style.display = "block"; return f; })()),
+        VB.bar(w / total),
         h("span", { class: "faint" }, pct(w / total))))),
     candidates.length
       ? h("div", { class: "applied" },
@@ -230,13 +132,13 @@ async function showListings(token) {
     const json = JSON.stringify(shortlists);
     if (json === lastJson) return;
     lastJson = json;
-    const applicants = shortlists.reduce((n, s) => n + s.candidates.length, 0);
+    const applications = shortlists.reduce((n, s) => n + s.candidates.length, 0);
     paint(token,
       h("div", { class: "page-head" },
         h("div", { class: "grow" },
           h("h1", {}, "Internships"),
-          h("p", { class: "soft" }, applicants
-            ? `${applicants} ${applicants === 1 ? "application" : "applications"} so far. Students appear here when they apply and agree to share their report.`
+          h("p", { class: "soft" }, applications
+            ? `${applications} ${applications === 1 ? "application" : "applications"} so far. Students appear here when they apply and agree to share their report.`
             : "No applications yet. Students appear here when they apply and agree to share their report.")),
         status),
       h("div", { class: "listings" }, listings.map((l, i) => listingRow(l, shortlists[i]))));
@@ -245,7 +147,7 @@ async function showListings(token) {
   startPolling(token, draw, status);
 }
 
-// Ranked applicants for one internship
+// ---------- Ranked applicants for one internship ----------
 
 function candidateRow(c, listingId, isNew) {
   const skills = TAGS.filter(([tag]) => c.skills[tag] !== undefined);
@@ -329,63 +231,7 @@ async function showShortlist(token, listingId) {
   startPolling(token, draw, status);
 }
 
-// One candidate's full report
-
-function claimedTable(rows) {
-  return h("table", { class: "two-col" },
-    h("thead", {}, h("tr", {}, h("th", { scope: "col" }, "Claimed on their profile"), h("th", { scope: "col" }, "Shown in the viva"))),
-    h("tbody", {}, rows.map((r) => h("tr", {},
-      h("td", {}, r.claimed ? r.name : h("span", { class: "faint" }, "Not claimed")),
-      h("td", {}, h("span", { class: "row-gap" }, r.claimed ? null : h("span", {}, TAG_NAME[r.tag] || r.tag), levelChip(r.level)))))));
-}
-
-function skillBars(skills) {
-  return h("div", { class: "skillbars" }, TAGS.map(([tag, name]) => {
-    const score = skills[tag];
-    const level = levelOf(score);
-    const fill = h("span", { class: `weight-fill fill-${level}` });
-    fill.style.display = "block";
-    fill.style.width = score === undefined ? "0%" : `${score}%`;
-    return h("div", { class: "skillbar" },
-      h("span", {}, name),
-      h("span", { class: "weight-track" }, fill),
-      h("span", { class: score === undefined ? "faint small" : "small" }, score === undefined ? "Not shown" : `${score} ${LEVEL_LABEL[level]}`));
-  }));
-}
-
-function hackathonRows(items) {
-  return items.map((x) => h("div", { class: "hack" },
-    h("div", {},
-      h("div", {}, h("strong", {}, `${RESULT_LABEL[x.result] || x.result}, ${x.event} ${x.year}`)),
-      h("div", { class: "small soft row-gap" },
-        h("a", { href: githubRepo(x.repo_full_name), target: "_blank", rel: "noopener noreferrer" }, x.repo_full_name),
-        h("span", {}, `Team of ${x.team_size}`),
-        x.verified && x.your_commit_share !== null ? h("span", {}, `${pct(x.your_commit_share)} of commits by this student`) : null)),
-    x.verified
-      ? h("div", { class: "row-gap" }, chip("Verified", "strong"), h("span", { class: "small" }, `Viva ${x.viva_score}/100`))
-      : chip("Not verified yet", "not_shown")));
-}
-
-function evidenceSheet(e, i) {
-  const facts = [
-    chip(e.mode === "voice" ? "Spoken" : "Typed", "fact"),
-    e.duration_s !== null && e.duration_s !== undefined ? chip(`${e.duration_s} s`, "fact") : null,
-    e.had_follow_up ? chip("Follow-up asked", "fact") : null,
-    e.pasted ? chip("Text was pasted", "fact") : null,
-  ];
-  return h("article", { class: "sheet", "aria-label": `Answer ${i + 1}` },
-    h("div", { class: "sheet-q" },
-      h("div", { class: "row-gap small" }, h("strong", {}, `Question ${i + 1}`), chip(TAG_NAME[e.skill] || e.skill, levelOf(e.score * 10)), h("span", {}, `${e.score}/10`)),
-      h("p", { class: "q-text" }, e.question)),
-    h("div", { class: "code-col" }, codeBlock(`${e.repo_full_name}  ${e.file}  lines ${e.lines}`, e.snippet, e.snippet_start_line)),
-    h("div", { class: "said" },
-      e.evidence_quote ? h("p", { class: "said-quote" }, e.evidence_quote) : null,
-      h("p", { class: "said-excerpt" }, `Their answer: ${e.answer_excerpt}`),
-      e.covered.length ? h("div", {}, h("div", { class: "small" }, h("strong", {}, "Covered")), h("ul", { class: "points covered" }, e.covered.map((x) => h("li", {}, x)))) : null,
-      e.missed.length ? h("div", {}, h("div", { class: "small" }, h("strong", {}, "Missed")), h("ul", { class: "points missed" }, e.missed.map((x) => h("li", {}, x)))) : null,
-      scoreBar(e.score),
-      h("div", { class: "row-gap small" }, facts)));
-}
+// ---------- One candidate's full report ----------
 
 async function showCandidate(token, studentId, listingId) {
   paint(token, loading("Loading report…"));
@@ -394,10 +240,9 @@ async function showCandidate(token, studentId, listingId) {
   const back = listingId
     ? h("a", { class: "crumb", href: `#/listing/${enc(listingId)}` }, "Back to applicants")
     : h("a", { class: "crumb", href: "#/" }, "All internships");
-  const bh = r.build_history;
   const nodes = [
     h("div", { class: "report-head" },
-      h("div", { class: "grow", style: null },
+      h("div", {},
         back,
         h("h1", {}, r.student.name),
         h("div", { class: "row-gap soft" },
@@ -418,29 +263,24 @@ async function showCandidate(token, studentId, listingId) {
     h("section", { class: "block" },
       h("h2", {}, "Claimed and shown"),
       h("p", { class: "block-note" }, "Only skills shown in the viva count toward matches."),
-      claimedTable(r.claimed_vs_verified)),
+      VB.claimedTable(r.claimed_vs_verified, "them")),
     h("section", { class: "block" },
       h("h2", {}, "Verified skills"),
-      skillBars(r.skills)));
+      VB.skillBars(r.skills)));
   if (r.hackathons.length) {
     nodes.push(h("section", { class: "block" },
       h("h2", {}, "Hackathons"),
       h("p", { class: "block-note" }, "A hackathon is verified when the student finishes a viva on its repo. On team repos the questions are about the files they changed."),
-      h("div", {}, hackathonRows(r.hackathons))));
+      h("div", {}, VB.hackathonRows(r.hackathons, "them"))));
   }
   nodes.push(h("section", { class: "block" },
     h("h2", {}, "Answers"),
     h("p", { class: "block-note" }, "Each question was about the code shown. Their words sit beside it."),
-    h("div", { class: "evidence" }, r.evidence.map(evidenceSheet))));
-  if (bh) {
+    h("div", { class: "evidence" }, r.evidence.map((e, i) => VB.evidenceSheet(e, i, "them")))));
+  if (r.build_history) {
     nodes.push(h("section", { class: "block" },
       h("h2", {}, "How the repo was built"),
-      h("div", { class: "facts-list" },
-        h("p", {}, bh.commits > 100
-          ? `${bh.commits} commits in total. The last 100 span ${bh.span_days} days, with commits on ${bh.active_days} of them.`
-          : `${bh.commits} commits over ${bh.span_days} days, with commits on ${bh.active_days} of them.`),
-        h("p", {}, `${bh.authors} ${bh.authors === 1 ? "author" : "authors"} in ${bh.commits > 100 ? "the last 100 commits" : "the history"}, ${pct(bh.your_commit_share)} of those commits by this student.`),
-        h("p", {}, `Median ${bh.median_lines_per_commit} lines changed per commit.`)),
+      VB.buildHistoryFacts(r.build_history, "them"),
       h("p", { class: "block-note" }, "Facts from GitHub. They don't change the score.")));
   }
   nodes.push(h("section", { class: "block" },
@@ -463,7 +303,7 @@ function parseHash() {
 async function render() {
   const token = ++viewToken;
   stopPolling();
-  if (!getKey()) return showSignin();
+  if (!session.get(KEY)) return showSignin();
   signoutButton.hidden = false;
   const { parts, query } = parseHash();
   try {
