@@ -56,6 +56,8 @@ Across the 5 questions:
 
 For each question write a rubric: 3 or 4 short points a good answer would make, based on what this code actually does.
 
+Team repos: if some files are marked changed_by_student="yes", other people wrote the rest. Ask every question about code in the marked files, so the student is asked about their own part.
+
 Also list repo_skills: each skill tag the code clearly shows, with one sentence of evidence that names the file.
 
 {TAG_GUIDE}
@@ -96,12 +98,13 @@ QUESTIONS_SCHEMA = {
 }
 
 
-def _questions_prompt(full_name: str, readme: str, files: dict[str, str]) -> str:
+def _questions_prompt(full_name: str, readme: str, files: dict[str, str], mine: list[str] | None = None) -> str:
     parts = [f"Repo: {full_name}", "<<<REPO>>>"]
     if readme:
         parts.append(f"<<<README>>>\n{_safe(readme)}\n<<<END README>>>")
     for path, text in files.items():
-        parts.append(f'<<<FILE path="{path}">>>\n{_safe(github_ingest.numbered(text))}\n<<<END FILE>>>')
+        marker = ' changed_by_student="yes"' if mine and path in mine else ""
+        parts.append(f'<<<FILE path="{path}"{marker}>>>\n{_safe(github_ingest.numbered(text))}\n<<<END FILE>>>')
     parts.append("<<<END REPO>>>\n\nWrite the viva now.")
     return "\n\n".join(parts)
 
@@ -146,19 +149,39 @@ def public(question: dict) -> dict:
     return {k: v for k, v in question.items() if k != "rubric"}
 
 
-def _analyze(full_name: str, login: str) -> dict:
+def not_yours(login: str) -> ApiError:
+    return ApiError("REPO_NOT_OWNED", f"You can only verify a repo you own or have commits in as {login}. "
+                    "Your commits must use an email linked to your GitHub account.", 400)
+
+
+def _analyze(full_name: str, login: str, owned: bool) -> dict:
     started = time.monotonic()
     meta = github_ingest.get_repo(full_name)
     full_name = meta["full_name"]  # GitHub's own spelling
-    with ThreadPoolExecutor(max_workers=2) as pool:
+    with ThreadPoolExecutor(max_workers=3) as pool:
         history = pool.submit(github_ingest.build_history, full_name, login)
         languages = pool.submit(github_ingest.get_languages, full_name)
-        readme, files = github_ingest.select_files(github_ingest.download_files(full_name, meta["default_branch"]))
+        my_commits = pool.submit(github_ingest.commits_by, full_name, login)
+        all_files = github_ingest.download_files(full_name, meta["default_branch"])
+        try:
+            my_shas = my_commits.result()
+        except ApiError:
+            if not owned:
+                raise
+            my_shas = []  # the student's own repo: the viva can go ahead without commit details
+        if not owned and not my_shas:
+            raise not_yours(login)
+        hist = history.result()
+        # Team repo: someone else owns it, or more than one person committed. Then ask about the student's files.
+        team = not owned or bool(hist and hist["authors"] > 1)
+        focus = github_ingest.files_changed(full_name, my_shas) if team and my_shas else None
+        readme, files = github_ingest.select_files(all_files, focus)
         if not files:
             raise ApiError("NO_SOURCE_FILES", "We couldn't find source code we can read in this repo. Pick a repo with code you wrote.", 422)
+        mine = [p for p in files if focus and focus.get(p)]
         # LOW thinking: ~10 s instead of 25-50 s, with questions as good in our side-by-side tests.
         result, usage = gemini.generate_json(
-            [_questions_prompt(full_name, readme, files)], QUESTIONS_SCHEMA,
+            [_questions_prompt(full_name, readme, files, mine)], QUESTIONS_SCHEMA,
             system=QUESTIONS_SYSTEM, validate=lambda d: _clean_questions(d, files), thinking="LOW", timeout_s=90,
         )
         return {
@@ -166,8 +189,9 @@ def _analyze(full_name: str, login: str) -> dict:
             "repo_meta": {
                 "full_name": full_name, "description": meta.get("description"), "default_branch": meta["default_branch"],
                 "html_url": meta.get("html_url"), "stars": meta.get("stargazers_count", 0), "languages": languages.result(),
+                "contribution": {"team_repo": team, "your_commits": len(my_shas), "focus_files": mine},
             },
-            "build_history": history.result(),
+            "build_history": hist,
             "repo_skills": result["repo_skills"],
             "files": files,
             "questions": result["questions"],
@@ -179,11 +203,13 @@ def start(student_id: str, repo_full_name: str) -> dict:
     student = db.get("students", student_id)
     if not student:
         raise ApiError("STUDENT_NOT_FOUND", "We couldn't find your profile. Please sign up again.", 404)
+    login = student["github_username"]
     full_name = repo_full_name.strip().strip("/")
-    if "/" not in full_name or full_name.split("/")[0].lower() != student["github_username"].lower():
-        raise ApiError("REPO_NOT_OWNED", f"You can only verify repos under your own GitHub account ({student['github_username']}).", 400)
+    if "/" not in full_name:
+        raise not_yours(login)
+    owned = full_name.split("/")[0].lower() == login.lower()  # otherwise allowed only if the student has commits in it
 
-    analysis = (demo_cache.analysis(full_name) if demo_cache.enabled() else None) or _analyze(full_name, student["github_username"])
+    analysis = (demo_cache.analysis(full_name) if demo_cache.enabled() else None) or _analyze(full_name, login, owned)
     row = db.insert("repo_analyses", {
         "student_id": student_id,
         **{k: analysis[k] for k in ("repo_full_name", "repo_meta", "build_history", "repo_skills", "files", "ai_usage")},
@@ -199,6 +225,7 @@ def start(student_id: str, repo_full_name: str) -> dict:
             "files_read": len(analysis["files"]),
         },
         "repo_skills": analysis["repo_skills"],
+        "contribution": analysis["repo_meta"].get("contribution") or {"team_repo": False, "your_commits": 0, "focus_files": []},
         "questions": [public(q) for q in analysis["questions"]],
         "time_limit_s": TIME_LIMIT_S,
     }
@@ -308,7 +335,7 @@ def _evaluate(question: dict, files: dict[str, str], body: AnswerRequest, first:
     return evaluation, gemini.merge_usage(transcribe_usage, usage) if transcribe_usage else usage
 
 
-def _closed(questions: list[dict], answers: list[dict]) -> set[str]:
+def closed_questions(questions: list[dict], answers: list[dict]) -> set[str]:
     """Questions that are finished: answered, and any follow-up answered too."""
     done = set()
     for q in questions:
@@ -366,7 +393,7 @@ def answer(session_id: str, body: AnswerRequest) -> dict:
     except db.Duplicate:  # a double submit that raced this one
         raise already
 
-    closed = _closed(session["questions"], db.select("viva_answers", session_id=session_id))
+    closed = closed_questions(session["questions"], db.select("viva_answers", session_id=session_id))
     next_id = None if follow_up else next((q["id"] for q in session["questions"] if q["id"] not in closed), None)
     done = follow_up is None and next_id is None
     if done:
@@ -380,7 +407,7 @@ def answer(session_id: str, body: AnswerRequest) -> dict:
 def state(session_id: str) -> dict:
     session = _session(session_id)
     answers = db.select("viva_answers", session_id=session_id)
-    closed = _closed(session["questions"], answers)
+    closed = closed_questions(session["questions"], answers)
     pending = next(
         ({"question_id": a["question_id"], "follow_up": a["follow_up"]}
          for a in answers if not a["is_follow_up"] and a.get("follow_up") and a["question_id"] not in closed),

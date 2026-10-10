@@ -3,6 +3,8 @@
 - Sign-up and the repo picker: the user check and the repo list (REST).
 - Analyze: repo info and languages (REST), all files in one tarball download, and the
   build history from one GraphQL query. Then we choose the ~12 files worth asking about.
+- Team repos: the student's own commits and the files they changed (REST), so a viva on a
+  hackathon repo asks about the student's part of the code.
 """
 
 import io
@@ -12,6 +14,7 @@ import math
 import re
 import statistics
 import tarfile
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import PurePosixPath
 
@@ -94,6 +97,29 @@ def get_languages(full_name: str) -> dict[str, float]:
     langs = _get(f"/repos/{full_name}/languages") or {}
     total = sum(langs.values())
     return {name: round(n * 100 / total, 1) for name, n in sorted(langs.items(), key=lambda kv: -kv[1])} if total else {}
+
+
+def commits_by(full_name: str, login: str) -> list[str]:
+    """SHAs of up to 100 recent commits by this GitHub user (GitHub links them by the commit email)."""
+    commits = _get(f"/repos/{full_name}/commits", author=login, per_page=100) or []
+    return [c["sha"] for c in commits if isinstance(c, dict) and c.get("sha")]
+
+
+def files_changed(full_name: str, shas: list[str], limit: int = 30) -> dict[str, int]:
+    """Lines changed per file across the most recent `limit` of these commits."""
+    def one(sha: str) -> list[tuple[str, int]]:
+        try:
+            data = _get(f"/repos/{full_name}/commits/{sha}") or {}
+        except ApiError:
+            return []  # one unreadable commit shouldn't stop the viva
+        return [(f["filename"], f.get("changes", 0)) for f in data.get("files", []) if f.get("filename")]
+
+    totals: dict[str, int] = {}
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        for files in pool.map(one, shas[:limit]):
+            for name, changes in files:
+                totals[name] = totals.get(name, 0) + changes
+    return totals
 
 
 # --- Analyze: files ---
@@ -247,11 +273,12 @@ def _ref_keys(path: str) -> set[str]:
     return {k for k in keys if len(k) >= 2}
 
 
-def select_files(files: dict[str, str]) -> tuple[str, dict[str, str]]:
+def select_files(files: dict[str, str], focus: dict[str, int] | None = None) -> tuple[str, dict[str, str]]:
     """Returns (readme, chosen) where chosen maps path -> text for up to 12 files, ~60k chars total.
 
     Ranking: files that other files import score higher, bigger files score higher (up to a point),
     entry points get a boost, tests and config get less. We spread picks across folders.
+    `focus` (team repos) maps path -> lines the student changed: their files rank far above the rest.
     """
     readme = next((t for p, t in sorted(files.items()) if _is_readme(p)), "")[:README_CHARS]
     candidates = {}
@@ -269,6 +296,7 @@ def select_files(files: dict[str, str]) -> tuple[str, dict[str, str]]:
         path: "\n".join(line for line in text.split("\n") if IMPORT_LINE_RE.search(line))
         for path, text in candidates.items()
     }
+    most_mine = max((focus.get(p, 0) for p in candidates), default=0) if focus else 0
     scores = {}
     for path, text in candidates.items():
         keys = _ref_keys(path)
@@ -289,6 +317,9 @@ def select_files(files: dict[str, str]) -> tuple[str, dict[str, str]]:
         code_lines = [line for line in text.split("\n") if line.strip()]
         if sum(1 for line in code_lines if IMPORT_LINE_RE.search(line)) > 0.5 * len(code_lines):
             weight *= 0.2  # a file that mostly re-exports other files
+        if most_mine:
+            mine = focus.get(path, 0)
+            weight *= (2 + 3 * mine / most_mine) if mine else 0.25
         scores[path] = (1 + refs) * math.log2(1 + min(lines, 600)) * weight
 
     chosen: dict[str, str] = {}
