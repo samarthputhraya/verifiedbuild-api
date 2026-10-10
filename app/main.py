@@ -198,7 +198,7 @@ WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 class WebFiles(StaticFiles):
     """Browsers revalidate pages and scripts on every load (a cheap 304), so a phone that opened the app
-    before a deploy never runs old app.js against a new common.js. Fonts never change, so they are cached."""
+    before a deploy never runs old app.js against a new ui.js. Fonts never change, so they are cached."""
 
     def file_response(self, full_path, stat_result, scope, status_code=200):
         response = super().file_response(full_path, stat_result, scope, status_code)
