@@ -1,4 +1,4 @@
-# Handoff - 2026-10-10 23:55 IST, written by Claude session
+# Handoff - 2026-10-11 02:00 IST, written by Claude session
 
 ## Goal (one line)
 VerifiedBuild: 5-question viva on a student's own repo → verified skill profile → internship match → recruiter shortlist.
@@ -7,8 +7,10 @@ VerifiedBuild: 5-question viva on a student's own repo → verified skill profil
 Phone 1: sign up → pick repo → analyze (~15 s) → answer question 1 by voice. Phone 2: a finished report (claimed vs verified, evidence, verified hackathon, matches) → apply with consent. Laptop: the Promtal shortlist on `/recruiter/`, where the student appears within 5 s. Script and lines: `docs/pitch.md`.
 
 ## Works now (verified, with how it was verified)
-- Live on Cloud Run, revision 00011 (Supabase + Vertex AI). `/api/health` returns `v1.1`.
-- **Web redesign on Material 3 Expressive (18:00):** student app, recruiter dashboard and landing page.
+- Live on Cloud Run, revision 00013 (Supabase + Vertex AI). `/api/health` returns `v1.1`. 00011 is the last Material 3 version if a rollback is ever needed.
+- **New web design, "skills, run like a build" (11 Oct, 02:00):** reading a repo is a CI run, the 5 questions are tests, skills come out as build badges, matches show their formula, and records carry a seal drawn from the student's scores.
+  - Verified locally with real GitHub and Gemini: sign-up, the run card while analyzing, the viva as a review thread with a follow-up reply, done screen, report, apply stamp, recruiter list-detail with badges and the match breakdown, dark mode, phone and desktop with no sideways scroll.
+- **Earlier Material 3 version (18:00), the same flows:**
   - Verified locally in a browser: the full student flow (4-step sign-up, live GitHub check, the letter PDF gives the right message, analyze, typed answers, follow-up, a spoken answer through the real recorder, done, report, apply with consent).
   - Also checked locally: phone and desktop layouts, dark mode, and recruiter list-detail with a second applicant arriving live.
   - Live: every page, font, icon and the manifest return 200, the GitHub avatar loads under the CSP, and there are no console errors.
@@ -62,7 +64,7 @@ Phone 1: sign up → pick repo → analyze (~15 s) → answer question 1 by voic
 - The student web app exists so judges can try it from a QR code (`docs/qr-student-app.svg`), and as a fallback if the Android build isn't ready.
 - Hackathons count only after a viva on their repo. On team repos, questions cover the files the student changed.
 - Match = 60% verified skills + 25% interests + 15% best verified hackathon. No AI in the formula.
-- Design: Material 3 Expressive, colours from seed #3D5AFE (Vibrant, spec 2025), Google Sans Flex. One source: `design/tokens.json`. The web app is the main product (decided 17:15).
+- Design (11 Oct, 02:00): "skills, run like a build", designed from where the skill lives (the code), as Guru-Graph was from the notebook. Run stages, tests, build badges, resume-to-viva diff, match breakdown, and a seal drawn from the student's scores. Bricolage Grotesque + JetBrains Mono. Material 3 dropped.
 - Web files are sent with `Cache-Control: no-cache`, so phones never mix old and new JS after a deploy.
 - Slow Gemini calls are hedged: the same request is sent again after 6 s (transcription), 8 s (scoring) or 25 s (questions), and the first answer wins.
 - Pitch claims use today's measurements: each of 6 test answers was scored 5 times and never moved by more than 1 point.
