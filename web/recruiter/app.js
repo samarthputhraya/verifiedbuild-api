@@ -1,306 +1,242 @@
-"use strict";
-// VerifiedBuild recruiter dashboard. Plain JavaScript, no build step, served by the API itself.
-// Shared components live in /common.js (the VB object).
+// VerifiedBuild recruiter dashboard: sign in → internships → ranked applicants → one candidate's report.
+// React-style components on Preact (htm, no build step). Shared pieces live in /ui.js.
 
-const { h, enc, chip, icon, shape, button, api: callApi, levelOf, ago, TAGS, TAG_NAME, pct } = VB;
+import {
+  html, render, useState, useEffect, useRef,
+  api as callApi, store, enc, go, useHash, useMedia, levelOf, ago, pct, count, githubUser, repoName,
+  TAGS, TAG_NAME,
+  Icon, Mark, Button, Field, Tag, LevelTag, Avatar, Bar, Skeleton, SkeletonList, Empty, Banner,
+  SkillRows, ClaimsList, HackathonList, EvidenceSheet, BuildHistory, MatchCard, Toasts, DialogHost, toast,
+} from "/ui.js";
+
 const POLL_MS = 5000;
 const KEY = "vb_admin_key";
-const session = VB.store(window.sessionStorage);
-const wide = window.matchMedia("(min-width: 1200px)");
-
-const app = document.getElementById("app");
-const live = document.getElementById("live");
-const signoutButton = document.getElementById("signout");
-signoutButton.append(icon("logout"));
-VB.watchScroll(document.getElementById("appbar"));
-
-let viewToken = 0; // bumps on every navigation, so a slow fetch or poll never paints over a newer view
-let pollTimer = null;
-
+const session = store(window.sessionStorage);
 const api = (path, opts = {}) => callApi(path, { ...opts, headers: opts.admin ? { "X-Admin-Key": session.get(KEY) || "" } : {} });
 
-function paint(token, ...nodes) {
-  if (token !== viewToken) return false;
-  app.replaceChildren(...nodes.flat().filter((n) => n !== null && n !== undefined && n !== false));
-  return true;
+// Loads data now and again every few seconds while the tab is visible. `live` is "ok", "stale" or null.
+function usePoll(fn, deps) {
+  const [st, setSt] = useState({ loading: true, data: null, error: null, live: null });
+  const last = useRef("");
+  useEffect(() => {
+    let alive = true;
+    last.current = "";
+    setSt({ loading: true, data: null, error: null, live: null });
+    const run = async (first) => {
+      if (!alive || (!first && document.hidden)) return;
+      try {
+        const data = await fn();
+        if (!alive) return;
+        const json = JSON.stringify(data);
+        if (json !== last.current) { last.current = json; setSt({ loading: false, data, error: null, live: "ok" }); }
+        else setSt((s) => (s.live === "ok" ? s : { ...s, live: "ok" }));
+      } catch (error) {
+        if (!alive) return;
+        if (first) setSt({ loading: false, data: null, error, live: null });
+        else setSt((s) => ({ ...s, live: error.code === "BAD_ADMIN_KEY" ? null : "stale", error: error.code === "BAD_ADMIN_KEY" ? error : s.error }));
+      }
+    };
+    run(true);
+    const t = setInterval(() => run(false), POLL_MS);
+    return () => { alive = false; clearInterval(t); };
+  }, deps);
+  return st;
 }
 
-const head = (title, sub, back, trailing) => h("div", { class: "page-head" },
-  back ? h("a", { class: "btn text back", href: back[0] }, icon("arrow_back"), back[1]) : null,
-  h("div", { class: "section-head" }, h("h1", { class: "headline-l" }, title), trailing || null),
-  sub ? h("p", { class: "body-l var" }, sub) : null);
+const PageHead = ({ title, lead, back, action }) => html`<div class="page-head">${back ? html`<a class="back" href=${back[0]}><${Icon} name="arrow-left" size="sm" />${back[1]}</a>` : null}<div class="row between wrap"><h1 class="h1">${title}</h1>${action || null}</div>${lead ? html`<p class="lead">${lead}</p>` : null}</div>`;
+const Section = ({ title, note, children }) => html`<section class="section"><div class="section-head"><div><h2 class="h2">${title}</h2>${note ? html`<p>${note}</p>` : null}</div></div>${children}</section>`;
 
-const section = (title, note, ...children) => h("section", { class: "section" },
-  h("div", { class: "section-head" }, h("h2", { class: "title-l" }, title)), note ? h("p", { class: "section-note" }, note) : null, children);
-
-function setLive(state) {
-  live.replaceChildren(state ? chip(state === "ok" ? "Updating live" : "Reconnecting", `live${state === "ok" ? "" : " stale"}`) : "");
-}
-
-function stopPolling() {
-  if (pollTimer) clearInterval(pollTimer);
-  pollTimer = null;
-  setLive(null);
-}
-
-function startPolling(token, refresh) {
-  stopPolling();
-  setLive("ok");
-  pollTimer = setInterval(async () => {
-    if (token !== viewToken || document.hidden) return;
-    try {
-      await refresh();
-      setLive("ok");
-    } catch (e) {
-      if (e.code === "BAD_ADMIN_KEY") return signOut(e.message);
-      setLive("stale");
-    }
-  }, POLL_MS);
+function Shell({ live, signedIn, onSignOut, wide, children }) {
+  return html`
+    <header class="topbar">
+      <a class="brand" href="#/"><${Mark} />VerifiedBuild <span class="sub">for recruiters</span></a>
+      <span class="spacer"></span>
+      ${live ? html`<${Tag} kind=${live === "ok" ? "ok live" : ""}>${live === "ok" ? "Updating live" : "Reconnecting"}<//>` : null}
+      ${signedIn ? html`<button class="icon-btn" type="button" aria-label="Sign out" title="Sign out" onClick=${onSignOut}><${Icon} name="logout" /></button>` : null}
+    </header>
+    <main class=${`main${wide ? " wide" : ""}`}>${children}</main>
+    <${Toasts} /><${DialogHost} />`;
 }
 
 // ---------- Sign in ----------
 
-function showSignin(message) {
-  ++viewToken;
-  stopPolling();
-  signoutButton.hidden = true;
-  const pass = VB.textField({ id: "passcode", label: "Passcode", type: "password", attrs: { autocomplete: "current-password" } });
-  if (message) pass.setError(message);
-  const submit = button("Sign in", { type: "submit", kind: "lg", iconAfter: "arrow_forward" });
-  const form = h("form", {
-    class: "signin", novalidate: true,
-    onsubmit: async (ev) => {
-      ev.preventDefault();
-      if (!pass.input.value.trim()) { pass.setError("Enter the passcode."); return; }
-      submit.disabled = true;
-      session.set(KEY, pass.input.value.trim());
-      try {
-        await api("/api/admin/verify", { admin: true });
-        location.hash = "#/";
-        render();
-      } catch (e) {
-        session.del(KEY);
-        pass.setError(e.message);
-        submit.disabled = false;
-        pass.input.focus();
-      }
-    },
-  },
-    VB.seal({ empty: true, size: 72, seed: "recruiter", center: icon("lock") }),
-    h("div", { class: "fields" },
-      h("h1", { class: "headline-m" }, "Recruiter sign-in"),
-      h("p", { class: "body-m var" }, "Enter the passcode from the VerifiedBuild team to see who applied to your internships, ranked by the skills they verified.")),
-    pass.wrap,
-    h("div", { class: "actions end" }, submit));
-  app.replaceChildren(form);
-  pass.input.focus();
+function SignIn({ message, onDone }) {
+  const [pass, setPass] = useState("");
+  const [err, setErr] = useState(message || "");
+  const [busy, setBusy] = useState(false);
+  async function submit(e) {
+    e.preventDefault();
+    if (!pass.trim()) { setErr("Enter the passcode."); return; }
+    setBusy(true);
+    session.set(KEY, pass.trim());
+    try { await api("/api/admin/verify", { admin: true }); go("#/", true); onDone(); }
+    catch (e2) { session.del(KEY); setErr(e2.message); }
+    finally { setBusy(false); }
+  }
+  return html`<form class="signin fade" novalidate onSubmit=${submit}>
+    <div><h1 class="h1">Recruiter sign-in</h1><p class="small muted" style="margin-top:0.375rem">Enter the passcode from the VerifiedBuild team to see who applied to your internships, ranked by the skills they verified.</p></div>
+    <${Field} id="passcode" label="Passcode" type="password" value=${pass} onInput=${(e) => { setPass(e.target.value); setErr(""); }} state=${err ? "error" : ""} hint=${err} attrs=${{ autocomplete: "current-password", autofocus: true }} />
+    <${Button} type="submit" size="lg" busy=${busy} block>Sign in<//>
+  </form>`;
 }
 
-function signOut(message) {
-  session.del(KEY);
-  location.hash = "#/";
-  showSignin(message);
-}
-
-function showError(e) {
-  if (e.code === "BAD_ADMIN_KEY") return signOut(e.message);
-  app.replaceChildren(h("div", { class: "section" }, VB.banner(e.message, { action: button("Try again", { kind: "text", iconName: "refresh", onclick: () => render() }) })));
-}
-
-// ---------- Internships, each with its applicants ----------
+// ---------- Internships ----------
 
 function weightBars(required) {
   const weights = Object.entries(required).sort((a, b) => b[1] - a[1]);
   const total = weights.reduce((sum, [, w]) => sum + w, 0) || 1;
-  return h("div", { class: "weights", "aria-label": "Skills this role needs" }, weights.map(([tag, w]) => {
-    const fill = h("span");
-    fill.style.width = pct(w / total);
-    return h("div", { class: "weight" }, h("span", {}, TAG_NAME[tag] || tag), h("span", { class: "track" }, fill), h("span", { class: "num" }, pct(w / total)));
-  }));
+  return html`<div class="weights" aria-label="Skills this role needs">${weights.map(([tag, w]) => html`<div class="weight"><span>${TAG_NAME[tag] || tag}</span><div class="bar"><span style=${`width:${pct(w / total)}`}></span></div><span class="num" style="text-align:right">${pct(w / total)}</span></div>`)}</div>`;
 }
 
-function listingCard(listing, shortlist) {
-  const candidates = shortlist.candidates || [];
-  const top = candidates[0];
-  return h("a", { class: "listing-card", href: `#/listing/${enc(listing.id)}` },
-    h("div", { class: "listing-top" },
-      shape("cookie6", 48, "secondary", h("span", { class: "title-m" }, listing.venture.slice(0, 1))),
-      h("div", {}, h("div", { class: "title-l" }, listing.title), h("div", { class: "body-m var" }, listing.venture))),
-    h("p", { class: "body-m var clamp-2" }, listing.description),
-    weightBars(listing.required_skills),
-    h("div", { class: "listing-foot" },
-      h("span", { class: `count-badge${candidates.length ? "" : " zero"}` }, String(candidates.length)),
-      h("span", { class: "body-m" }, candidates.length ? (candidates.length === 1 ? "applicant" : "applicants") : "No applicants yet"),
-      h("span", { class: "spacer" }),
-      top ? h("span", { class: "body-s var" }, `Top: ${top.name}, ${top.match}%`) : null,
-      icon("chevron_right")));
-}
-
-async function showListings(token) {
-  paint(token, VB.loadingView("Loading internships…"));
-  let lastJson = "";
-  const draw = async () => {
+function Listings({ onBadKey }) {
+  const { loading, data, error, live } = usePoll(async () => {
     const { listings } = await api("/api/listings");
     const shortlists = await Promise.all(listings.map((l) => api(`/api/admin/shortlist/${enc(l.id)}`, { admin: true })));
-    const json = JSON.stringify(shortlists);
-    if (json === lastJson) return;
-    lastJson = json;
-    const applications = shortlists.reduce((n, sl) => n + sl.candidates.length, 0);
-    paint(token,
-      head("Internships", applications
-        ? `${VB.count(applications, "application")} so far. Students appear here when they apply and agree to share their report.`
-        : "No applications yet. Students appear here when they apply and agree to share their report."),
-      h("div", { class: "listing-grid" }, listings.map((l, i) => listingCard(l, shortlists[i]))));
-  };
-  await draw();
-  startPolling(token, draw);
+    return { listings, shortlists };
+  }, []);
+  useEffect(() => { if (error && error.code === "BAD_ADMIN_KEY") onBadKey(error.message); }, [error]);
+  if (error && !data) return html`<${Banner}>${error.message}<//>`;
+  if (loading) return html`<div class="stack"><${Skeleton} w="30%" h="1.5rem" /><div class="grid">${[1, 2, 3].map(() => html`<${Skeleton} h="14rem" />`)}</div></div>`;
+  const { listings, shortlists } = data;
+  const applications = shortlists.reduce((n, sl) => n + sl.candidates.length, 0);
+  return html`<div class="fade" data-live=${live}>
+    <${PageHead} title="Internships" lead=${applications ? `${count(applications, "application")} so far. Students appear here when they apply and agree to share their report.` : "No applications yet. Students appear here when they apply and agree to share their report."} />
+    <div class="grid">${listings.map((l, i) => {
+      const c = shortlists[i].candidates;
+      return html`<a class="listing" href=${`#/listing/${enc(l.id)}`}>
+        <div><div class="h3">${l.title}</div><div class="small muted">${l.venture}</div></div>
+        <p class="small muted clamp-2">${l.description}</p>
+        ${weightBars(l.required_skills)}
+        <div class="listing-foot"><span class=${`count${c.length ? "" : " zero"}`}>${c.length}</span><span>${c.length ? (c.length === 1 ? "applicant" : "applicants") : "No applicants yet"}</span><span class="spacer" style="flex:1"></span>${c[0] ? html`<span class="meta">Top: ${c[0].name}, ${c[0].match}%</span>` : null}<${Icon} name="chevron-right" /></div>
+      </a>`;
+    })}</div>
+  </div>`;
 }
 
-// ---------- Ranked applicants for one internship ----------
+// ---------- Ranked applicants ----------
 
-function candidateItem(c, listingId, { isNew, selected, onSelect }) {
-  const skills = TAGS.filter(([tag]) => c.skills[tag] !== undefined);
-  const href = `#/candidate/${enc(c.student_id)}?listing=${enc(listingId)}`;
-  return h("a", {
-    class: `li cand${isNew ? " new" : ""}${selected ? " selected" : ""}`, href, "aria-current": selected ? "true" : null,
-    onclick: (ev) => { if (onSelect && wide.matches) { ev.preventDefault(); onSelect(c.student_id); } },
-  },
-    h("span", { class: "rank", "aria-label": `Rank ${c.rank}` }, String(c.rank)),
-    VB.seal({ skills: c.skills, seed: c.github_username, size: 52, center: VB.avatar(c.github_username) }),
-    h("div", { class: "li-main" },
-      h("div", { class: "title-m" }, c.name),
-      h("div", { class: "li-meta" }, h("span", {}, c.college), h("span", {}, `Applied ${ago(c.applied_at)}`)),
-      h("div", { class: "mini-skills badges" }, skills.map(([tag, name]) => VB.badge(name.toLowerCase(), String(c.skills[tag]), levelOf(c.skills[tag]))),
-        (c.hackathons || []).length ? chip(`${c.hackathons.length} verified hackathon${c.hackathons.length > 1 ? "s" : ""}`, "tertiary", "emoji_events") : null)),
-    h("span", { class: "cand-match", "aria-label": `${c.match}% match` }, h("span", { class: "pct" }, `${c.match}%`), h("span", { class: "lbl" }, "match")));
-}
-
-async function downloadCsv(listingId, btn) {
-  btn.disabled = true;
+async function downloadCsv(listingId, setBusy) {
+  setBusy(true);
   try {
     const res = await api(`/api/admin/shortlist/${enc(listingId)}/csv`, { admin: true, raw: true });
     const url = URL.createObjectURL(await res.blob());
-    const a = h("a", { href: url, download: `shortlist-${listingId}.csv` });
-    document.body.append(a);
-    a.click();
-    a.remove();
+    const a = document.createElement("a");
+    a.href = url; a.download = `shortlist-${listingId}.csv`;
+    document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    VB.snackbar("CSV downloaded.");
-  } catch (e) {
-    if (e.code === "BAD_ADMIN_KEY") return signOut(e.message);
-    VB.snackbar(e.message);
-  } finally {
-    btn.disabled = false;
-  }
+    toast("CSV downloaded.");
+  } catch (e) { toast(e.message); } finally { setBusy(false); }
 }
 
-async function showShortlist(token, listingId, selectedId) {
-  paint(token, VB.loadingView("Loading applicants…"));
-  let known = null;
-  let lastJson = "";
-  let selected = selectedId;
-  let sl = null;
-  // The full listing (with its skill weights), so each match can show its formula
-  const full = await api("/api/listings").then((x) => x.listings.find((l) => l.id === listingId)).catch(() => null);
-  const listEl = h("div", { class: "list split-list" });
-  const detail = h("div", { class: "split-detail" });
-  const select = async (id) => {
-    selected = id;
-    history.replaceState(null, "", `#/listing/${enc(listingId)}?c=${enc(id)}`);
-    drawList(new Set());
-    detail.replaceChildren(VB.loadingView("Loading report…"));
-    try {
-      const r = await api(`/api/report/${enc(id)}`);
-      if (token === viewToken && selected === id) detail.replaceChildren(...reportNodes(r, full || sl.listing));
-    } catch (e) { detail.replaceChildren(VB.banner(e.message)); }
-  };
-  const drawList = (fresh) => listEl.replaceChildren(...sl.candidates.map((c) => candidateItem(c, listingId, { isNew: fresh.has(c.student_id), selected: wide.matches && c.student_id === selected, onSelect: select })));
-  const draw = async () => {
-    sl = await api(`/api/admin/shortlist/${enc(listingId)}`, { admin: true });
-    const json = JSON.stringify(sl);
-    if (json === lastJson) return;
-    lastJson = json;
+function Candidate({ c, listingId, selected, isNew, onSelect, wide }) {
+  const skills = TAGS.filter(([tag]) => c.skills[tag] !== undefined);
+  return html`<a class=${`item cand${isNew ? " new" : ""}${selected ? " selected" : ""}`} href=${`#/candidate/${enc(c.student_id)}?listing=${enc(listingId)}`} aria-current=${selected ? "true" : null} onClick=${(e) => { if (wide) { e.preventDefault(); onSelect(c.student_id); } }}>
+    <span class="rank" aria-label=${`Rank ${c.rank}`}>${c.rank}</span>
+    <${Avatar} username=${c.github_username} />
+    <div class="item-main">
+      <div class="item-title">${c.name}</div>
+      <div class="item-meta"><span>${c.college}</span><span>Applied ${ago(c.applied_at)}</span></div>
+      <div class="tags">${skills.map(([tag, name]) => html`<${Tag} kind=${levelOf(c.skills[tag])}>${name} ${c.skills[tag]}<//>`)}${(c.hackathons || []).length ? html`<${Tag} kind="brand">${c.hackathons.length} verified hackathon${c.hackathons.length > 1 ? "s" : ""}<//>` : null}</div>
+    </div>
+    <div style="text-align:right"><div class="pct">${c.match}%</div><div class="meta">match</div></div>
+  </a>`;
+}
+
+function ReportView({ r, listing }) {
+  const repos = [...new Set(r.evidence.map((e) => e.repo_full_name))];
+  const forThis = listing && r.status === "done" ? r.matches.find((m) => m.listing_id === listing.id) : null;
+  return html`<div class="fade">
+    <div class="card">
+      <div class="profile"><${Avatar} username=${r.student.github_username} size="lg" /><div class="who"><h1 class="h1">${r.student.name}</h1><div class="small muted">${r.student.college} · <a href=${githubUser(r.student.github_username)} target="_blank" rel="noopener noreferrer">@${r.student.github_username}</a></div></div></div>
+      ${r.status === "done" ? html`<div class="overall" style="margin-top:1.25rem"><div><div class="k">Overall score</div><div class="score">${r.overall}<small>/ 100</small></div></div><div class="facts"><${Tag} kind="ok">Verified by viva<//>${repos.map((x) => html`<${Tag} plain kind="outline">${repoName(x)}<//>`)}<${Tag} plain kind="outline">${count(r.evidence.length, "answer")} with evidence<//></div></div>` : null}
+    </div>
+    ${r.status !== "done" ? html`<div class="section"><${Banner} kind="info">This student hasn't finished a viva yet, so there are no scores to show.<//></div>` : html`
+      ${forThis ? html`<div class="section"><${MatchCard} m=${forThis} listing=${listing} top=${true} /></div>` : null}
+      <${Section} title="Verified skills" note="From their answers. 70 and up is strong, 40 to 69 partial."><${SkillRows} skills=${r.skills} /><//>
+      <${Section} title="Claimed and verified" note="Only skills shown in the viva count toward matches."><${ClaimsList} rows=${r.claimed_vs_verified} who="them" /><//>
+      ${r.hackathons.length ? html`<${Section} title="Hackathons" note="Verified when the student finishes a viva on its repo. On team repos the questions are about the files they changed."><${HackathonList} items=${r.hackathons} who="them" /><//>` : null}
+      <${Section} title="Answers" note="Each question was about the code shown beside it."><div class="evidence">${r.evidence.map((e, i) => html`<${EvidenceSheet} e=${e} i=${i} who="them" />`)}</div><//>
+      ${r.build_history ? html`<${Section} title="How the repo was built" note="Facts from GitHub. They don't change the score."><${BuildHistory} bh=${r.build_history} who="them" /><//>` : null}
+      <${Section} title="Matches across all internships"><div class="list">${r.matches.map((m) => html`<div class="item"><span class="pct" style="font-size:1rem;font-weight:600;min-width:3rem">${m.match}%</span><div class="item-main"><div class="item-title">${m.title}, ${m.venture}</div><div class="item-sub">${m.why}</div></div><span class="item-trail">${m.applied ? html`<${Tag} kind="ok">Applied<//>` : null}</span></div>`)}</div><//>`}
+  </div>`;
+}
+
+function Shortlist({ listingId, initialSelected, onBadKey }) {
+  const wide = useMedia("(min-width: 1200px)");
+  const { loading, data: sl, error, live } = usePoll(() => api(`/api/admin/shortlist/${enc(listingId)}`, { admin: true }), [listingId]);
+  const [listing, setListing] = useState(null);
+  const [selected, setSelected] = useState(initialSelected);
+  const [detail, setDetail] = useState({ id: null, loading: false, report: null, error: null });
+  const [fresh, setFresh] = useState(new Set());
+  const known = useRef(null);
+  const [csvBusy, setCsvBusy] = useState(false);
+  useEffect(() => { api("/api/listings").then((x) => setListing(x.listings.find((l) => l.id === listingId) || null)).catch(() => {}); }, [listingId]);
+  useEffect(() => { if (error && error.code === "BAD_ADMIN_KEY") onBadKey(error.message); }, [error]);
+
+  // New applicants: a toast and a short highlight
+  useEffect(() => {
+    if (!sl) return;
     const ids = sl.candidates.map((c) => c.student_id);
-    const fresh = new Set(known ? ids.filter((id) => !known.has(id)) : []);
-    known = new Set(ids);
-    if (fresh.size) {
-      const names = sl.candidates.filter((c) => fresh.has(c.student_id)).map((c) => c.name).join(", ");
-      VB.snackbar(`New applicant: ${names}`, { actionText: wide.matches ? "View" : null, onAction: () => select([...fresh][0]) });
+    const f = new Set(known.current ? ids.filter((id) => !known.current.has(id)) : []);
+    known.current = new Set(ids);
+    if (f.size) {
+      setFresh(f);
+      const names = sl.candidates.filter((c) => f.has(c.student_id)).map((c) => c.name).join(", ");
+      toast(`New applicant: ${names}`, { actionText: wide ? "View" : null, onAction: () => select([...f][0]) });
+      setTimeout(() => setFresh(new Set()), 2500);
     }
-    const csv = button("Download CSV", { kind: "outlined", iconName: "download" });
-    csv.addEventListener("click", () => downloadCsv(listingId, csv));
-    if (!sl.candidates.length) {
-      return paint(token,
-        head(sl.listing.title, `${sl.listing.venture}. Ranked by match on verified skills and verified hackathons, then by overall score.`, ["#/", "All internships"]),
-        h("div", { class: "section" }, h("div", { class: "split-detail" }, h("div", { class: "empty-detail" },
-          shape("cookie9", 72, "secondary", icon("group", "lg")),
-          h("h2", { class: "title-l" }, "No applicants yet"),
-          h("p", { class: "body-m" }, "Students appear here the moment they apply and agree to share their report. This page updates by itself.")))));
-    }
-    drawList(fresh);
-    // After a reload the URL already names a candidate, but the detail pane is still empty
-    if (wide.matches && (!selected || !ids.includes(selected) || !detail.firstChild)) select(ids.includes(selected) ? selected : ids[0]);
-    paint(token,
-      head(sl.listing.title, `${sl.listing.venture}. ${VB.count(sl.candidates.length, "applicant")}, ranked by match on verified skills and verified hackathons, then by overall score.`, ["#/", "All internships"], csv),
-      h("div", { class: "split section" }, listEl, wide.matches ? detail : null));
+    if (wide && ids.length && (!selected || !ids.includes(selected))) select(ids[0]);
+    else if (wide && selected && detail.id !== selected) select(selected);
+  }, [sl, wide]);
+
+  const select = (id) => {
+    setSelected(id);
+    history.replaceState(null, "", `#/listing/${enc(listingId)}?c=${enc(id)}`);
+    setDetail({ id, loading: true, report: null, error: null });
+    api(`/api/report/${enc(id)}`).then((report) => setDetail((d) => (d.id === id ? { id, loading: false, report, error: null } : d))).catch((e) => setDetail((d) => (d.id === id ? { id, loading: false, report: null, error: e } : d)));
   };
-  await draw();
-  startPolling(token, draw);
+
+  if (error && !sl) return html`<${Banner}>${error.message}<//>`;
+  if (loading) return html`<div class="stack"><${Skeleton} w="40%" h="1.5rem" /><${SkeletonList} rows=${4} /></div>`;
+  const head = html`<${PageHead} back=${["#/", "All internships"]} title=${sl.listing.title} lead=${`${sl.listing.venture}. ${sl.candidates.length ? `${count(sl.candidates.length, "applicant")}, ranked` : "Ranked"} by match on verified skills and verified hackathons, then by overall score.`} action=${sl.candidates.length ? html`<${Button} kind="secondary" icon="download" busy=${csvBusy} onClick=${() => downloadCsv(listingId, setCsvBusy)}>Download CSV<//>` : null} />`;
+  if (!sl.candidates.length) return html`<div class="fade" data-live=${live}>${head}<div class="list"><${Empty} icon="users" title="No applicants yet" text="Students appear here the moment they apply and agree to share their report. This page updates by itself." /></div></div>`;
+  return html`<div class="fade" data-live=${live}>${head}
+    <div class="split">
+      <div class="list split-list">${sl.candidates.map((c) => html`<${Candidate} key=${c.student_id} c=${c} listingId=${listingId} wide=${wide} selected=${wide && c.student_id === selected} isNew=${fresh.has(c.student_id)} onSelect=${select} />`)}</div>
+      ${wide ? html`<div class="split-detail">${detail.loading ? html`<div class="stack"><${Skeleton} w="40%" h="1.5rem" /><${Skeleton} h="8rem" /><${SkeletonList} rows=${4} /></div>` : detail.error ? html`<${Banner}>${detail.error.message}<//>` : detail.report ? html`<${ReportView} r=${detail.report} listing=${listing || sl.listing} />` : null}</div>` : null}
+    </div>
+  </div>`;
 }
 
-// ---------- One candidate's report ----------
-
-function reportNodes(r, listing) {
-  const nodes = [VB.credential(r, "them")];
-  if (r.status !== "done") return nodes.concat(h("div", { class: "section" }, VB.banner("This student hasn't finished a viva yet, so there are no scores to show.", { kind: "info", iconName: "info" })));
-  const forThis = listing ? r.matches.find((m) => m.listing_id === listing.id) : null;
-  if (forThis) nodes.push(h("div", { class: "section" }, VB.matchCard(forThis, listing, { top: true, report: r })));
-  nodes.push(
-    section("Verified skills", "From their answers. 70 and up is strong, 40 to 69 partial.", VB.skillStamps(r.skills)),
-    section("Resume → viva", "+ was shown in the viva without being claimed. − is on the resume but wasn't shown here. Only shown skills count toward matches.", VB.claimsList(r.claimed_vs_verified, "them")));
-  if (r.hackathons.length) nodes.push(section("Hackathons", "Verified when the student finishes a viva on its repo. On team repos the questions are about the files they changed.", VB.hackathonList(r.hackathons, "them")));
-  nodes.push(section("Answers", "Each question was about the code shown beside it.", h("div", { class: "evidence" }, r.evidence.map((e, i) => VB.evidenceSheet(e, i, "them")))));
-  if (r.build_history) nodes.push(section("How the repo was built", "Facts from GitHub. They don't change the score.", VB.buildHistory(r.build_history, "them")));
-  nodes.push(section("Matches across all internships", null, h("div", { class: "list" }, r.matches.map((m) => h("div", { class: "li" },
-    VB.ring(m.match, { size: 48, stroke: 4, label: `${m.match}% match`, children: h("span", { class: "label-m" }, `${m.match}%`) }),
-    h("div", { class: "li-main" }, h("div", { class: "title-m" }, `${m.title}, ${m.venture}`), h("div", { class: "body-s var" }, m.why)),
-    h("span", { class: "li-trail" }, m.applied ? VB.stampApplied(false) : null))))));
-  return nodes;
+function CandidatePage({ studentId, listingId }) {
+  const [st, setSt] = useState({ loading: true, report: null, listing: null, error: null });
+  useEffect(() => {
+    setSt({ loading: true, report: null, listing: null, error: null });
+    Promise.all([api(`/api/report/${enc(studentId)}`), api("/api/listings").then((x) => x.listings).catch(() => [])])
+      .then(([report, listings]) => setSt({ loading: false, report, listing: listings.find((l) => l.id === listingId) || null, error: null }))
+      .catch((error) => setSt({ loading: false, report: null, listing: null, error }));
+    window.scrollTo(0, 0);
+  }, [studentId, listingId]);
+  const back = html`<div class="page-head"><a class="back" href=${listingId ? `#/listing/${enc(listingId)}` : "#/"}><${Icon} name="arrow-left" size="sm" />${listingId ? "Back to applicants" : "All internships"}</a></div>`;
+  if (st.error) return html`${back}<${Banner}>${st.error.message}<//>`;
+  if (st.loading) return html`${back}<div class="stack"><${Skeleton} w="40%" h="1.5rem" /><${Skeleton} h="8rem" /><${SkeletonList} rows=${4} /></div>`;
+  return html`${back}<${ReportView} r=${st.report} listing=${st.listing} />`;
 }
 
-async function showCandidate(token, studentId, listingId) {
-  paint(token, VB.loadingView("Loading report…"));
-  const [r, listings] = await Promise.all([api(`/api/report/${enc(studentId)}`), api("/api/listings").then((x) => x.listings).catch(() => [])]);
-  const listing = listings.find((l) => l.id === listingId) || null;
-  const back = h("a", { class: "btn text back", href: listingId ? `#/listing/${enc(listingId)}` : "#/" }, icon("arrow_back"), listingId ? "Back to applicants" : "All internships");
-  paint(token, h("div", { class: "page-head" }, back), ...reportNodes(r, listing));
-  window.scrollTo(0, 0);
+// ---------- App ----------
+
+function App() {
+  const { parts, query } = useHash();
+  const [, bump] = useState(0);
+  const [message, setMessage] = useState(null);
+  const refresh = () => bump((x) => x + 1);
+  const signOut = (msg) => { session.del(KEY); setMessage(msg || null); go("#/", true); refresh(); };
+  if (!session.get(KEY)) return html`<${Shell} signedIn=${false}><${SignIn} message=${message} onDone=${() => { setMessage(null); refresh(); }} /><//>`;
+  let view;
+  if (parts[0] === "listing" && parts[1]) view = html`<${Shortlist} key=${parts[1]} listingId=${decodeURIComponent(parts[1])} initialSelected=${query.get("c")} onBadKey=${signOut} />`;
+  else if (parts[0] === "candidate" && parts[1]) view = html`<${CandidatePage} studentId=${decodeURIComponent(parts[1])} listingId=${query.get("listing")} />`;
+  else view = html`<${Listings} onBadKey=${signOut} />`;
+  return html`<${Shell} signedIn=${true} onSignOut=${() => signOut()} wide=${true}>${view}<//>`;
 }
 
-// ---------- Router ----------
-
-function parseHash() {
-  const raw = location.hash.replace(/^#/, "") || "/";
-  const [path, qs] = raw.split("?");
-  return { parts: path.split("/").filter(Boolean), query: new URLSearchParams(qs || "") };
-}
-
-async function render() {
-  const token = ++viewToken;
-  stopPolling();
-  if (!session.get(KEY)) return showSignin();
-  signoutButton.hidden = false;
-  const { parts, query } = parseHash();
-  try {
-    if (parts[0] === "listing" && parts[1]) await showShortlist(token, decodeURIComponent(parts[1]), query.get("c"));
-    else if (parts[0] === "candidate" && parts[1]) await showCandidate(token, decodeURIComponent(parts[1]), query.get("listing"));
-    else await showListings(token);
-  } catch (e) {
-    if (token === viewToken) showError(e);
-  }
-}
-
-signoutButton.addEventListener("click", () => signOut());
-window.addEventListener("hashchange", render);
-wide.addEventListener("change", render);
-render();
+render(html`<${App} />`, document.getElementById("root"));
