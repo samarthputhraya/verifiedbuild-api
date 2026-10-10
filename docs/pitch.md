@@ -37,7 +37,7 @@ Use the student whose story is clearest. If a founder or recruiter at the event 
 
 Prepare before going on stage:
 - **Phone 1 (mirrored to the projector):** the student web app, installed with Chrome's "Add to Home screen" so it opens full screen like an app. Sign up a second student up to the last step, but don't press "Create my profile". That student's repo must be public.
-  - Use the Android app instead only if it talks to our API and matches the web design by then.
+  - Don't show the Android app: it doesn't use our API (checked 10 Oct, 23:45).
 - **Phone 2, or Phone 1 after the live part:** signed in as [Name], with a finished viva and a verified hackathon, and **not yet applied to Promtal**.
 - **Laptop:** the recruiter dashboard at `https://verifiedbuild-api-215071922486.asia-south1.run.app/recruiter/`, signed in and open on the Promtal shortlist, with 2–3 volunteers who already applied.
 - The backup video, ready to play.

@@ -20,13 +20,14 @@ Read this file and **API_CONTRACT.md** before writing any code. API_CONTRACT.md 
 
 | Part | What | Owner | Repo |
 |---|---|---|---|
-| Frontend | Google AI Studio Build mode, **React web app**, deployed to Cloud Run from AI Studio | Ayush | `verifiedbuild-app` (AI Studio GitHub sync) |
+| Frontend (the demo) | Student web app (`web/app/`), recruiter dashboard (`web/recruiter/`) and landing page: plain HTML/JS served by this API | SAM | this repo, Claude Code |
+| Android prototype | Google AI Studio Build mode, Kotlin. Not connected to this API (checked 10 Oct 23:45), so not in the demo | Ayush | `trulyayush/KITSW` |
 | Backend | Python 3.11 + FastAPI on Google Cloud Run | SAM | `verifiedbuild-api` (this repo, Claude Code) |
 | Data | Supabase Postgres, accessed only from the backend with the service-role key. No Supabase Auth. | SAM | this repo, `supabase/schema.sql` |
 | AI | Gemini API via the `google-genai` Python SDK. Model from env `GEMINI_MODEL` (use the current Flash model). JSON output with a response schema. | SAM | this repo |
 | External | GitHub REST API with `GITHUB_TOKEN` | SAM | this repo |
 
-**All AI lives in the backend.** The AI Studio app is UI only. It never calls Gemini or GitHub directly, and holds no keys. That keeps one source of truth, keeps keys off the client, and keeps the AI work explainable on stage.
+**All AI lives in the backend.** Every client is UI only. It never calls Gemini or GitHub directly, and holds no keys. That keeps one source of truth, keeps keys off the client, and keeps the AI work explainable on stage.
 
 **The backend must work for any client** (the AI Studio preview, the deployed AI Studio app, curl, a future Android app):
 - CORS: `allow_origins=["*"]`, `allow_credentials=False`, all methods and headers. AI Studio preview origins change, so don't whitelist.
@@ -235,10 +236,9 @@ gcloud run deploy verifiedbuild-api --source . --region asia-south1 \
   - everything above;
   - deploys, and owns `API_CONTRACT.md`;
   - runs the volunteer vivas.
-- **Ayush (frontend, `verifiedbuild-app`):**
-  - builds the 6 screens in AI Studio from `AI_STUDIO_PROMPTS.md`;
-  - deploys from AI Studio to Cloud Run;
-  - keeps GitHub sync on and pushes after every prompt.
+- **Ayush (Android prototype, `trulyayush/KITSW`):**
+  - built it in AI Studio; connecting it to this API is in `docs/ai-studio-android-prompts.md`;
+  - since the 23:00 cut-off on 10 Oct: pitch, backup video and volunteers.
 - **Pitch:** drafted in the Claude chat. On stage, Ayush drives the demo and SAM explains how it works.
 - **Contract first:** SAM's first commit is every endpoint returning the **hard-coded examples** from API_CONTRACT.md, deployed. Real logic then replaces the mocks one endpoint at a time without changing shapes.
 

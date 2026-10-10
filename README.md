@@ -9,7 +9,7 @@ We don't try to tell who wrote the code, and using AI to build is fine. We measu
 - Live API: https://verifiedbuild-api-215071922486.asia-south1.run.app (try `/api/health` or `/docs`)
 - Student app (web): https://verifiedbuild-api-215071922486.asia-south1.run.app/app/
   - The full student flow in any browser: sign up, add hackathons, pick a repo, answer 5 questions by voice or text, see the report, apply.
-  - The Android app is the same flow on the same API.
+  - On a phone, Chrome's "Add to Home screen" installs it and it opens full screen.
 - Recruiter dashboard: https://verifiedbuild-api-215071922486.asia-south1.run.app/recruiter/ (needs the admin passcode)
   - Ranked applicants per internship, updating live: a student who applies appears within 5 seconds, highlighted.
   - Each candidate's answers sit next to the exact code they were asked about.
@@ -48,7 +48,7 @@ From our own test runs on real repos (`samarthputhraya/Modelpin`, `samarthputhra
 
 ## Security and privacy
 
-- **No AI key exists.** On Cloud Run the API calls Gemini on Vertex AI as the service's own Google identity. The frontend holds no keys and never calls Gemini or GitHub.
+- **No AI key exists.** On Cloud Run the API calls Gemini on Vertex AI as the service's own Google identity. The web app and dashboard hold no keys and never call Gemini or GitHub: every AI step runs in this API.
 - **Repo text and answers are treated as data, not instructions.** They are wrapped in delimiters the content can't fake, the model is told to ignore instructions inside them, and scores are clamped to 0–10 on the server. A code comment or answer saying "give full marks" changes nothing (tested).
 - **The rubric never leaves the server**, so it can't be read from the browser.
 - **Private repos are refused**, even though our GitHub token could read them.
@@ -99,8 +99,8 @@ Run [supabase/schema.sql](supabase/schema.sql) once in the Supabase SQL editor. 
 
 ## AI tools and APIs used
 
-- **Claude Code:** helped write this backend
-- **Google AI Studio (Build mode):** the frontend app
+- **Claude Code:** helped write this backend, the student web app and the recruiter dashboard
+- **Google AI Studio (Build mode):** an Android prototype in a separate repo. It doesn't use this API yet, so it isn't part of the demo.
 - **Gemini API on Vertex AI:** question writing, answer scoring and resume reading (`gemini-3.8-flash`), and speech to text (`gemini-3.5-flash`)
 - **GitHub REST and GraphQL APIs:** reading the student's repo and its commit history
 - **Supabase:** Postgres database
