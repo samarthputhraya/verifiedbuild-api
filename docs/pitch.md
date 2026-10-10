@@ -96,6 +96,12 @@ Repo text and answers are treated as data, not instructions. They're fenced in d
 **Why your team?**
 [Your honest answer in two sentences: what you've built before and why you care about this problem.] We built this in 24 hours, and we used AI to do it, which is exactly why we think understanding should be what gets checked.
 
+## Let the judges try it
+
+Put [docs/qr-student-app.svg](qr-student-app.svg) on the last slide with the line "Verify your own repo: 5 questions, about 8 minutes." It opens the student web app (`/app/`), so judges need nothing installed. If one of them tries it, their row appears on the recruiter dashboard after they apply.
+
+Before the final, get the volunteer numbers with [docs/volunteers.md](volunteers.md).
+
 ## 6. Numbers slide
 
 | | |

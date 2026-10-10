@@ -7,6 +7,9 @@ AI lets anyone ship a project, so a repo alone no longer shows skill. VerifiedBu
 We don't try to tell who wrote the code, and using AI to build is fine. We measure whether the student understands the code they are showing, and we keep the evidence.
 
 - Live API: https://verifiedbuild-api-215071922486.asia-south1.run.app (try `/api/health` or `/docs`)
+- Student app (web): https://verifiedbuild-api-215071922486.asia-south1.run.app/app/
+  - The full student flow in any browser: sign up, add hackathons, pick a repo, answer 5 questions by voice or text, see the report, apply.
+  - The Android app is the same flow on the same API.
 - Recruiter dashboard: https://verifiedbuild-api-215071922486.asia-south1.run.app/recruiter/ (needs the admin passcode)
   - Ranked applicants per internship, updating live: a student who applies appears within 5 seconds, highlighted.
   - Each candidate's answers sit next to the exact code they were asked about.
@@ -55,7 +58,7 @@ From our own test runs on real repos (`samarthputhraya/Modelpin`, `samarthputhra
 
 ## Web pages
 
-`web/` holds the landing page and the recruiter dashboard: plain HTML, CSS and JavaScript with no build step, served by the API itself (`app/main.py`), so every call is same-origin.
+`web/` holds the landing page, the student app (`web/app/`) and the recruiter dashboard (`web/recruiter/`), with shared rendering in `web/common.js`. Plain HTML, CSS and JavaScript with no build step, served by the API itself (`app/main.py`), so every call is same-origin. Voice answers use the browser's MediaRecorder (webm or mp4), and the API converts and transcribes them.
 - Text from the API is always inserted as text, never as HTML, and a Content-Security-Policy allows only the site's own files.
 - Fonts are IBM Plex (SIL Open Font License, `web/fonts/OFL.txt`), served from the same site so venue Wi-Fi can't break them.
 
