@@ -7,6 +7,10 @@ AI lets anyone ship a project, so a repo alone no longer shows skill. VerifiedBu
 We don't try to tell who wrote the code, and using AI to build is fine. We measure whether the student understands the code they are showing, and we keep the evidence.
 
 - Live API: https://verifiedbuild-api-215071922486.asia-south1.run.app (try `/api/health` or `/docs`)
+- Recruiter dashboard: https://verifiedbuild-api-215071922486.asia-south1.run.app/recruiter/ (needs the admin passcode)
+  - Ranked applicants per internship, updating live: a student who applies appears within 5 seconds, highlighted.
+  - Each candidate's answers sit next to the exact code they were asked about.
+  - CSV export.
 - Request and response shapes: [API_CONTRACT.md](API_CONTRACT.md), with a sample of each in [examples/](examples/)
 
 ## How it works
@@ -48,6 +52,12 @@ From our own test runs on real repos (`samarthputhraya/Modelpin`, `samarthputhra
 - **Database:** row-level security is on with no policies, so only the backend's service-role key can read or write. Unique keys stop a double click from recording an answer or an application twice.
 - **Limits:** 10 MB per request, plus per-IP hourly caps on sign-ups, analyses and answers, so nobody can run up the AI bill.
 - **"Pasted" is shown as a plain fact.** If a paste happened in the answer box, recruiters see it, but it never changes the score.
+
+## Web pages
+
+`web/` holds the landing page and the recruiter dashboard: plain HTML, CSS and JavaScript with no build step, served by the API itself (`app/main.py`), so every call is same-origin.
+- Text from the API is always inserted as text, never as HTML, and a Content-Security-Policy allows only the site's own files.
+- Fonts are IBM Plex (SIL Open Font License, `web/fonts/OFL.txt`), served from the same site so venue Wi-Fi can't break them.
 
 ## Run locally
 
