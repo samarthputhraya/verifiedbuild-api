@@ -158,19 +158,21 @@ def _analyze(full_name: str, login: str, owned: bool) -> dict:
     started = time.monotonic()
     meta = github_ingest.get_repo(full_name)
     full_name = meta["full_name"]  # GitHub's own spelling
+    if not owned:
+        # Check for the student's commits before downloading anything: refusing should be instant.
+        my_shas = github_ingest.commits_by(full_name, login)
+        if not my_shas:
+            raise not_yours(login)
     with ThreadPoolExecutor(max_workers=3) as pool:
         history = pool.submit(github_ingest.build_history, full_name, login)
         languages = pool.submit(github_ingest.get_languages, full_name)
-        my_commits = pool.submit(github_ingest.commits_by, full_name, login)
+        my_commits = pool.submit(github_ingest.commits_by, full_name, login) if owned else None
         all_files = github_ingest.download_files(full_name, meta["default_branch"])
-        try:
-            my_shas = my_commits.result()
-        except ApiError:
-            if not owned:
-                raise
-            my_shas = []  # the student's own repo: the viva can go ahead without commit details
-        if not owned and not my_shas:
-            raise not_yours(login)
+        if owned:
+            try:
+                my_shas = my_commits.result()
+            except ApiError:
+                my_shas = []  # the student's own repo: the viva can go ahead without commit details
         hist = history.result()
         # Team repo: someone else owns it, or more than one person committed. Then ask about the student's files.
         team = not owned or bool(hist and hist["authors"] > 1)
