@@ -36,7 +36,8 @@ Use the student whose story is clearest. If a founder or recruiter at the event 
 ## 3. Demo path (Ayush drives, about 70 seconds)
 
 Prepare before going on stage:
-- **Phone 1 (mirrored to the projector):** the VerifiedBuild app on a fresh install, with a second student's details typed into sign-up but not submitted. That student's repo must be public. If the Android build isn't ready, use the student web app (`/app/`) in a private browser tab: it has the same flow.
+- **Phone 1 (mirrored to the projector):** the student web app, installed with Chrome's "Add to Home screen" so it opens full screen like an app. Sign up a second student up to the last step, but don't press "Create my profile". That student's repo must be public.
+  - Use the Android app instead only if it talks to our API and matches the web design by then.
 - **Phone 2, or Phone 1 after the live part:** signed in as [Name], with a finished viva and a verified hackathon, and **not yet applied to Promtal**.
 - **Laptop:** the recruiter dashboard at `https://verifiedbuild-api-215071922486.asia-south1.run.app/recruiter/`, signed in and open on the Promtal shortlist, with 2–3 volunteers who already applied.
 - The backup video, ready to play.
