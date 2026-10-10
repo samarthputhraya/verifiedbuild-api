@@ -1,4 +1,4 @@
-# Handoff - 2026-10-10 16:50 IST, written by Claude session
+# Handoff - 2026-10-10 18:05 IST, written by Claude session
 
 ## Goal (one line)
 VerifiedBuild: 5-question viva on a student's own repo → verified skill profile → internship match → recruiter shortlist.
@@ -7,10 +7,14 @@ VerifiedBuild: 5-question viva on a student's own repo → verified skill profil
 Phone 1: sign up → pick repo → analyze (~15 s) → answer question 1 by voice. Phone 2: a finished report (claimed vs verified, evidence, verified hackathon, matches) → apply with consent. Laptop: the Promtal shortlist on `/recruiter/`, where the student appears within 5 s. Script and lines: `docs/pitch.md`.
 
 ## Works now (verified, with how it was verified)
-- Live on Cloud Run, revision 00009 (Supabase + Vertex AI). `/api/health` returns `v1.1`.
+- Live on Cloud Run, revision 00011 (Supabase + Vertex AI). `/api/health` returns `v1.1`.
+- **Web redesign on Material 3 Expressive (18:00):** student app, recruiter dashboard and landing page.
+  - Verified locally in a browser: the full student flow (4-step sign-up, live GitHub check, the letter PDF gives the right message, analyze, typed answers, follow-up, a spoken answer through the real recorder, done, report, apply with consent).
+  - Also checked locally: phone and desktop layouts, dark mode, and recruiter list-detail with a second applicant arriving live.
+  - Live: every page, font, icon and the manifest return 200, the GitHub avatar loads under the CSP, and there are no console errors.
   - Pages: `/` (landing), `/app/` (student web app), `/recruiter/` (dashboard, needs ADMIN_KEY), `/docs`.
   - All return 200 (curl), and API 404s are JSON.
-- `python -m pytest`: 18 pass. They cover the full flow, hackathons, team repos, multi-viva reports, voice, errors, web pages, cache headers and hedged Gemini calls.
+- `python -m pytest`: 22 pass. They cover the full flow, hackathons, team repos, multi-viva reports, voice, errors, web pages, cache headers and hedged Gemini calls.
 - **Prod, through the student web app (16:14 IST):**
   - Sign-up → kavach analyzed (6 files, 4 skills found) → 5 typed answers.
   - A vague answer got a follow-up. A Hinglish answer scored 10/10.
@@ -33,7 +37,7 @@ Phone 1: sign up → pick repo → analyze (~15 s) → answer question 1 by voic
 - Nothing known broken.
 - Gemini's speed varies. On prod we saw analyze take 12 s and 30 s for the same repo, and one scoring took 19 s locally. Hence the 40 s / 25 s fallback rule in `docs/pitch.md`.
 - Unverified: `scripts/stats.py` numbers on real volunteers. Only 2 test vivas so far, at a median of $0.039 per viva, priced with third-party token rates.
-- Android app (Ayush, `verifiedbuild-app`): status unknown here. The prompts are `docs/ai-studio-android-prompts.md`, stages 1–7; stage 3 needs v1.1, which is live.
+- Android app (Ayush, `trulyayush/KITSW`, last push 12:39): it still calls Gemini and GitHub directly from the phone, with an API key built into the app, and shows a hard-coded line "No suspicious anomalies detected". The web app is now the main product. Ayush's API prompts are in `docs/ai-studio-android-prompts.md`; the theme prompt (`docs/android-theme-prompt.md`) comes only after those, and only if done by 23:00. Stage 3 needs v1.1, which is live.
 
 ## Next 3 steps (concrete, in order)
 1. Pick the persona and fill every `[bracket]` in `docs/pitch.md` with real facts.
@@ -52,6 +56,7 @@ Phone 1: sign up → pick repo → analyze (~15 s) → answer question 1 by voic
 - The student web app exists so judges can try it from a QR code (`docs/qr-student-app.svg`), and as a fallback if the Android build isn't ready.
 - Hackathons count only after a viva on their repo. On team repos, questions cover the files the student changed.
 - Match = 60% verified skills + 25% interests + 15% best verified hackathon. No AI in the formula.
+- Design: Material 3 Expressive, colours from seed #3D5AFE (Vibrant, spec 2025), Google Sans Flex. One source: `design/tokens.json`. The web app is the main product (decided 17:15).
 - Web files are sent with `Cache-Control: no-cache`, so phones never mix old and new JS after a deploy.
 - Slow Gemini calls are hedged: the same request is sent again after 6 s (transcription), 8 s (scoring) or 25 s (questions), and the first answer wins.
 - Pitch claims use today's measurements: each of 6 test answers was scored 5 times and never moved by more than 1 point.
