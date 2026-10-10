@@ -220,3 +220,18 @@ def test_errors_use_the_contract_shape():
         assert r.status_code == 404 and set(r.json()["error"]) == {"code", "message"}
         r = c.post("/api/students", content=b"x" * 100, headers={"Content-Length": str(11 * 1024 * 1024), "Content-Type": "application/json"})
         assert r.status_code == 413
+
+
+def test_web_pages_are_served_and_api_errors_stay_json():
+    with TestClient(app) as c:
+        r = c.get("/")
+        assert r.status_code == 200 and "text/html" in r.headers["content-type"] and "recruiter dashboard" in r.text
+        r = c.get("/recruiter/")
+        assert r.status_code == 200 and "/recruiter/app.js" in r.text
+        assert "Content-Security-Policy" in r.text
+        assert c.get("/recruiter/app.js").status_code == 200
+        assert c.get("/fonts/plex-sans-400.woff2").status_code == 200
+        r = c.get("/api/nope")
+        assert r.status_code == 404 and r.json()["error"]["code"] == "NOT_FOUND"
+        assert c.get("/docs").status_code == 200
+

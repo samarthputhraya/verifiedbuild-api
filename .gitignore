@@ -20,3 +20,6 @@ venv/
 
 # Local MCP config (Claude Code)
 .mcp.json
+
+# Browser test output (screenshots, snapshots)
+.playwright-mcp/

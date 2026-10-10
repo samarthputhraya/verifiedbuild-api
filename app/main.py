@@ -6,10 +6,12 @@ import re
 import time
 from collections import defaultdict, deque
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, FastAPI, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
+from fastapi.staticfiles import StaticFiles
 
 from app import applications, db, errors, github_ingest, hackathons, report, resume, viva
 from app.config import settings
@@ -186,3 +188,8 @@ def shortlist_csv(listing_id: str):
 
 
 app.include_router(admin)
+
+# The recruiter dashboard and the landing page (web/). Mounted last, so every /api route wins.
+WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+if WEB_DIR.is_dir():
+    app.mount("/", StaticFiles(directory=WEB_DIR, html=True), name="web")
