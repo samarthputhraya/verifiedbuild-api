@@ -1,45 +1,61 @@
-# VerifiedBuild Android app: AI Studio prompts
+# VerifiedBuild Android app: AI Studio prompts (v2)
 
-For: Ayush. From: SAM. Backend contract: `API_CONTRACT.md` v1 in `verifiedbuild-api`.
+For: Ayush. From: SAM. Backend contract: `API_CONTRACT.md` **v1.1** in `verifiedbuild-api`.
 
 ---
 
 ## Part A: read this first (for you, not for AI Studio)
 
-### What we're changing, and why
+### What we're building
 
-Your app keeps its screens and its look. What changes is where the data comes from:
+The student app of VerifiedBuild. A student signs up, picks a GitHub repo (their own, or a hackathon repo they committed to), and answers 5 questions about specific lines of that code, by voice or text, in any language. They get a report of what they **showed**, next to what they **claimed**, with their own words and the code as evidence. Internships are matched on verified skills, interests and verified hackathons.
+
+Your app keeps its screens and its look. What changes:
 
 | Today | After these prompts |
 |---|---|
-| The phone calls Gemini and GitHub directly, with a Gemini key built into the app | The phone calls only our API. No keys in the app. |
-| Questions come from the README and file names | Questions point at real lines of the student's code (the API reads the repo) |
+| The phone calls Gemini and GitHub directly, with a key built into the app | The phone calls only our API. No keys in the app. |
+| Questions come from the README and file names | Questions point at real lines of the student's code, and on team repos at the files they changed |
 | If Gemini fails, the app shows made-up scores, praise and resume details | No made-up results anywhere. If something fails, the student sees the reason and can retry. |
-| Sample students, Google/Atlassian/Razorpay recruiters, invented hackathon wins | Real data only. Internships are the event's 6 listings from the API. |
+| Sample students, Google/Atlassian/Razorpay recruiters, invented hackathon wins | Real data only. Hackathons are claims until a viva verifies them. |
 | Data lives on one phone | Data lives in our database, so the recruiter dashboard (web) sees it instantly |
-| Student, recruiter and admin screens | Student screens only. Recruiters use the web dashboard that SAM is building. |
+| Student, recruiter and admin screens | Student screens only. Recruiters use the web dashboard SAM is building. |
 
-Hackathon entries come back later as their own prompt, once the API supports them (contract v1.1). Don't build them now.
+### The 7 stages, and why in this order
+
+| Stage | What it builds | About |
+|---|---|---|
+| 1 | Removes the phone-side AI and invented data, adds the tested API layer | 20 min |
+| 2 | Sign-up and dashboard | 30 min |
+| 3 | API v1.1 update, repo picker, analyzing, and the **"What we found in your repo"** screen | 40 min |
+| 4 | The viva: questions on real code, voice or text, follow-ups | 45 min |
+| 5 | The report: **You said / You showed**, the code next to each answer, matches, apply | 45 min |
+| 6 | Hackathons: add them, verify them with a viva (team repos supported) | 30 min |
+| 7 | Cleanup, polish and demo readiness | 30 min |
+
+Each stage leaves the app building and working, so if time runs out you can stop after any stage and still demo.
+
+Stages 1 and 2 are the same as in the first version of this file (only the stage numbers changed). If you've already done them, carry on with Stage 3.
 
 ### How to run the prompts
 
-1. **Set up GitHub sync first.** Connect this AI Studio app to GitHub and create a new repo called `verifiedbuild-app`. Add `samarthputhraya` as a collaborator so SAM can check the API calls. From now on, work only in that repo. Don't upload zips to `verifiedbuild-api`.
-2. **Paste one stage at a time** (Stages 1 to 5 in Part B), each into the AI Studio Build chat. Paste everything inside the box, from `STAGE N` to `END OF STAGE N`.
+1. **Set up GitHub sync first.** Connect this AI Studio app to GitHub and create a repo called `verifiedbuild-app`. Add `samarthputhraya` as a collaborator. Work only in that repo, and don't upload zips to `verifiedbuild-api`.
+2. **Paste one stage at a time** into the AI Studio Build chat, everything from `STAGE N` to `END OF STAGE N`.
 3. **After each stage:**
-   1. Let AI Studio finish, and make sure the build passes.
-   2. Run the app on a real Android phone. The microphone matters in Stage 3.
-   3. Go through that stage's checks in Part C.
-   4. Commit to GitHub with the stage's commit message. Small commits with clear messages count with the judges.
-4. **Don't start the next stage until every check passes.** If one fails, use the fix prompt in Part D.
-5. **If AI Studio gets confused** (it forgets the rules, or undoes earlier work), paste this first: "Read PROJECT_RULES.md in the project root and follow it exactly." Then paste the stage again.
+   1. Make sure the build passes.
+   2. Install it on a real Android phone. Build the APK from AI Studio, or open the GitHub repo in Android Studio.
+   3. Run that stage's checks in Part C.
+   4. Commit with the stage's commit message.
+4. **Don't start the next stage until every check passes.** If one fails, use the fix prompts in Part D.
+5. **If AI Studio seems to forget the rules,** paste "Read PROJECT_RULES.md in the project root and follow it exactly." and then the stage again.
+6. **Before Stage 3,** open `https://verifiedbuild-api-215071922486.asia-south1.run.app/api/health` and check that it says `"version":"v1.1"`. If it still says v1, message SAM.
 
 ### Rules for us both, so we don't create conflicts
 
-- You work only in `verifiedbuild-app`. SAM works only in `verifiedbuild-api`.
-- The API shapes are fixed by `API_CONTRACT.md`. If you need a field or an endpoint that isn't there, message SAM. Don't add it in the app and don't guess. SAM updates the contract and the backend, then tells you.
-- The files Stage 1 adds under `data/api/`, `viva/`, `audio/`, `data/SessionStore.kt` and `data/ResumePicker.kt` were tested against the live API by SAM (every endpoint, follow-ups, voice from an m4a recording, errors, apply). Don't let AI Studio "improve" them. If one has to change, SAM changes it.
-- **When the API does something unexpected,** send SAM what the app sent and what it got back. A screenshot of the error message plus the time is enough. Better still, open an issue on `verifiedbuild-api`.
-- Live API: `https://verifiedbuild-api-215071922486.asia-south1.run.app`. Check it in a browser: `/api/health` should show `{"ok":true,...}`.
+- You work only in `verifiedbuild-app`, SAM only in `verifiedbuild-api`.
+- **The API shapes are fixed by `API_CONTRACT.md`.** Need a field or an endpoint that isn't there? Message SAM; don't add it or guess.
+- **SAM tested the Kotlin files the stages add** against the live API: every endpoint, follow-ups, voice from an m4a recording, team repos, hackathons, errors and apply. Don't let AI Studio change them. Only a stage prompt from SAM replaces them, and Stage 3 does that once, on purpose.
+- **When the API does something unexpected,** send SAM the screen, what you did, the error message shown and the time. Better still, open an issue on `verifiedbuild-api`.
 
 ---
 
@@ -48,7 +64,7 @@ Hackathon entries come back later as their own prompt, once the API supports the
 ### STAGE 1: foundation: remove the local AI and data, add the API layer
 
 ````text
-STAGE 1 of 5. Read all of this before changing anything.
+STAGE 1 of 7. Read all of this before changing anything.
 
 CONTEXT
 This Android app becomes the student app of "VerifiedBuild". A student signs up, picks one of their GitHub repos, answers 5 questions about their own code (by voice or typing), then sees a report of their verified skills and matched internships. A backend API (already live) does ALL the work: it reads the repo, writes the questions, transcribes and scores answers, and computes the report and matches. The app is only the UI for that API.
@@ -865,7 +881,7 @@ Commit message: `Remove local AI and sample data; add the VerifiedBuild API laye
 ### STAGE 2: sign-up and dashboard
 
 ````text
-STAGE 2 of 5. First read PROJECT_RULES.md in the project root and follow it exactly.
+STAGE 2 of 7. First read PROJECT_RULES.md in the project root and follow it exactly.
 
 GOAL
 A student creates a profile through POST /api/students, and sees a dashboard built from GET /api/report/{student_id}.
@@ -909,7 +925,7 @@ PART 2: Dashboard screen
 Rewrite app/src/main/java/com/example/ui/screens/student/StudentDashboardScreen.kt in the same visual style. Remove the Connections, Notifications and Portfolio/hackathon tabs, and the "Add project" dialog, completely.
 
 Data:
-- AppViewModel loads GET /api/report/{store.studentId} each time the Dashboard opens, and on a Refresh action. Keep it as StateFlow<Load<ReportResponse>> (reportState), which Stage 4 reuses.
+- AppViewModel loads GET /api/report/{store.studentId} each time the Dashboard opens, and on a Refresh action. Keep it as StateFlow<Load<ReportResponse>> (reportState), which later stages reuse.
 - It also loads GET /api/listings once and keeps it as StateFlow<Load<ListingsResponse>>.
 - If the report call fails with code STUDENT_NOT_FOUND: call store.clear(), then navigate(Welcome, clearStack = true) and show the message "We couldn't find your profile. Please sign up again."
 
@@ -957,15 +973,374 @@ Commit message: `Sign up through the API and show the dashboard`
 
 ---
 
-### STAGE 3: pick a repo, start the viva, answer by voice or text
+### STAGE 3: API v1.1, repo picker, analyzing, "What we found in your repo"
 
 ````text
-STAGE 3 of 5. First read PROJECT_RULES.md in the project root and follow it exactly.
+STAGE 3 of 7. First read PROJECT_RULES.md in the project root and follow it exactly.
+
+WHERE THE PROJECT IS NOW
+- data/api/ (the API layer), viva/VivaController.kt, audio/AnswerRecorder.kt, data/SessionStore.kt and data/ResumePicker.kt exist, and are locked by rule 6 of PROJECT_RULES.md.
+- AppViewModel owns navigation: Screen = Welcome, Onboarding, Dashboard, RepoPicker, Analyzing(repoFullName), Viva, VivaComplete, Report. It also has navigate, replace and back.
+- Welcome, Onboarding and Dashboard are real screens. RepoPicker, Analyzing, Viva, VivaComplete and Report are still placeholders.
+- AppViewModel holds reportState (Load<ReportResponse>) and the listings (Load<ListingsResponse>).
 
 GOAL
-The student picks a repo, the API writes 5 questions (POST /api/analyze), and the student answers them by voice or text, including follow-up questions, using VivaController. The viva can be left and continued later.
+- Move the API layer to contract v1.1.
+- Let the student pick a repo and start a viva.
+- Show a "What we found in your repo" screen before the first question.
 
-PART 1: Repo picker
+FIRST, PLAN
+Before changing code, list the files you will create, change and delete in this stage. Then make the changes.
+
+PART 1: API layer v1.1 (an allowed exception to rule 6)
+SAM updated two of the locked files for API contract v1.1 and tested them against the live API. Replace the WHOLE content of these two files with exactly the text below, character for character. This prompt is the permission rule 6 asks for. Change no other locked file.
+
+File: app/src/main/java/com/example/data/api/ApiModels.kt
+```kotlin
+package com.example.data.api
+
+import com.squareup.moshi.Json
+
+// Every request and response of the VerifiedBuild API (contract v1.1).
+// Field names in @Json(...) must match the API exactly. Do not rename them.
+// A "?" type means the API can send null there; handle it in the UI.
+
+// ---------- Errors: every non-2xx response has this body ----------
+data class ApiErrorBody(
+    val code: String,
+    val message: String,
+)
+
+data class ApiErrorEnvelope(
+    val error: ApiErrorBody,
+)
+
+// ---------- GET /api/health ----------
+data class HealthResponse(
+    val ok: Boolean,
+    @param:Json(name = "demo_mode") val demoMode: Boolean,
+    val version: String,
+)
+
+// ---------- POST /api/students ----------
+data class StudentCreateRequest(
+    val name: String,
+    val email: String,
+    val college: String,
+    @param:Json(name = "github_username") val githubUsername: String,
+    val interests: List<String>,
+    val skills: List<String>? = null,
+    @param:Json(name = "resume_base64") val resumeBase64: String? = null,
+    @param:Json(name = "resume_mime") val resumeMime: String? = null,
+)
+
+data class ClaimedSkill(
+    val name: String,
+    val tag: String,
+)
+
+data class StudentCreatedResponse(
+    @param:Json(name = "student_id") val studentId: String,
+    @param:Json(name = "github_username") val githubUsername: String,
+    @param:Json(name = "claimed_skills") val claimedSkills: List<ClaimedSkill>,
+    @param:Json(name = "claimed_from") val claimedFrom: String,
+)
+
+// ---------- GET /api/github/{username}/repos ----------
+data class RepoSummary(
+    @param:Json(name = "full_name") val fullName: String,
+    val description: String?,
+    val language: String?,
+    val stars: Int,
+    @param:Json(name = "pushed_at") val pushedAt: String?,
+)
+
+data class ReposResponse(
+    val repos: List<RepoSummary>,
+)
+
+// ---------- POST /api/analyze ----------
+data class AnalyzeRequest(
+    @param:Json(name = "student_id") val studentId: String,
+    @param:Json(name = "repo_full_name") val repoFullName: String,
+)
+
+data class AnalyzedRepo(
+    @param:Json(name = "full_name") val fullName: String,
+    val languages: Map<String, Double>,
+    @param:Json(name = "files_read") val filesRead: Int,
+)
+
+data class RepoSkill(
+    val tag: String,
+    val evidence: String,
+)
+
+data class VivaQuestion(
+    val id: String,
+    val file: String,
+    val lines: String,
+    val snippet: String,
+    @param:Json(name = "snippet_start_line") val snippetStartLine: Int,
+    val question: String,
+    val skill: String,
+    val difficulty: String,
+)
+
+// Team repo: someone else owns it or several people committed. Questions then focus on focusFiles,
+// the files this student changed.
+data class Contribution(
+    @param:Json(name = "team_repo") val teamRepo: Boolean,
+    @param:Json(name = "your_commits") val yourCommits: Int,
+    @param:Json(name = "focus_files") val focusFiles: List<String>,
+)
+
+data class AnalyzeResponse(
+    @param:Json(name = "session_id") val sessionId: String,
+    val repo: AnalyzedRepo,
+    @param:Json(name = "repo_skills") val repoSkills: List<RepoSkill>,
+    val contribution: Contribution,
+    val questions: List<VivaQuestion>,
+    @param:Json(name = "time_limit_s") val timeLimitS: Int,
+)
+
+// ---------- GET /api/viva/{session_id} ----------
+data class PendingFollowUp(
+    @param:Json(name = "question_id") val questionId: String,
+    @param:Json(name = "follow_up") val followUp: String,
+)
+
+data class VivaStateResponse(
+    @param:Json(name = "session_id") val sessionId: String,
+    @param:Json(name = "student_id") val studentId: String,
+    val status: String,
+    val questions: List<VivaQuestion>,
+    val answered: List<String>,
+    @param:Json(name = "current_question_id") val currentQuestionId: String?,
+    @param:Json(name = "pending_follow_up") val pendingFollowUp: PendingFollowUp?,
+)
+
+// ---------- POST /api/viva/{session_id}/answer ----------
+data class AnswerRequest(
+    @param:Json(name = "question_id") val questionId: String,
+    @param:Json(name = "is_follow_up") val isFollowUp: Boolean,
+    val mode: String, // "voice" or "text"
+    @param:Json(name = "answer_text") val answerText: String? = null,
+    @param:Json(name = "audio_base64") val audioBase64: String? = null,
+    @param:Json(name = "audio_mime") val audioMime: String? = null,
+    @param:Json(name = "duration_s") val durationS: Int? = null,
+    val pasted: Boolean = false,
+)
+
+data class AnswerResponse(
+    @param:Json(name = "question_id") val questionId: String,
+    val transcript: String,
+    val recorded: Boolean,
+    @param:Json(name = "follow_up") val followUp: String?,
+    @param:Json(name = "next_question_id") val nextQuestionId: String?,
+    val done: Boolean,
+)
+
+// ---------- GET /api/report/{student_id} ----------
+data class ReportStudent(
+    @param:Json(name = "student_id") val studentId: String,
+    val name: String,
+    val college: String,
+    @param:Json(name = "github_username") val githubUsername: String,
+)
+
+data class ReportRepo(
+    @param:Json(name = "full_name") val fullName: String,
+)
+
+data class ClaimedVsVerified(
+    val name: String,
+    val tag: String,
+    val claimed: Boolean,
+    val level: String, // "strong", "partial", "not_verified" or "not_shown"
+)
+
+data class EvidenceItem(
+    @param:Json(name = "question_id") val questionId: String,
+    @param:Json(name = "repo_full_name") val repoFullName: String,
+    val file: String,
+    val lines: String,
+    val snippet: String, // the code the question was about; show it next to the answer
+    @param:Json(name = "snippet_start_line") val snippetStartLine: Int,
+    val question: String,
+    @param:Json(name = "answer_excerpt") val answerExcerpt: String,
+    @param:Json(name = "evidence_quote") val evidenceQuote: String,
+    val covered: List<String>,
+    val missed: List<String>,
+    val score: Int, // 0-10
+    val skill: String,
+    val mode: String,
+    val pasted: Boolean,
+    @param:Json(name = "duration_s") val durationS: Int?,
+    @param:Json(name = "had_follow_up") val hadFollowUp: Boolean,
+)
+
+data class BuildHistory(
+    val commits: Int,
+    @param:Json(name = "active_days") val activeDays: Int,
+    @param:Json(name = "span_days") val spanDays: Int,
+    val authors: Int,
+    @param:Json(name = "your_commit_share") val yourCommitShare: Double,
+    @param:Json(name = "median_lines_per_commit") val medianLinesPerCommit: Int,
+)
+
+// A hackathon on the student's profile. Only a claim until verified by a finished viva on its repo.
+data class HackathonItem(
+    @param:Json(name = "hackathon_id") val hackathonId: String,
+    val event: String,
+    val year: Int,
+    val result: String, // "winner", "finalist" or "participant"
+    @param:Json(name = "team_size") val teamSize: Int,
+    @param:Json(name = "repo_full_name") val repoFullName: String,
+    val verified: Boolean,
+    @param:Json(name = "viva_score") val vivaScore: Int?, // null until verified
+    @param:Json(name = "your_commit_share") val yourCommitShare: Double?, // null until verified
+)
+
+// An unfinished viva, so the app can offer "Continue".
+data class VivaInProgress(
+    @param:Json(name = "session_id") val sessionId: String,
+    @param:Json(name = "repo_full_name") val repoFullName: String?,
+    val answered: Int,
+    val total: Int,
+)
+
+data class MatchItem(
+    @param:Json(name = "listing_id") val listingId: String,
+    val title: String,
+    val venture: String,
+    val match: Int, // 0-100
+    val why: String,
+    val applied: Boolean,
+)
+
+data class ReportResponse(
+    val student: ReportStudent,
+    val repo: ReportRepo?,
+    val status: String, // "in_progress" or "done"
+    val overall: Int, // 0-100
+    val skills: Map<String, Int>, // only tags that were asked, 0-100
+    @param:Json(name = "claimed_vs_verified") val claimedVsVerified: List<ClaimedVsVerified>,
+    val evidence: List<EvidenceItem>,
+    @param:Json(name = "build_history") val buildHistory: BuildHistory?,
+    val hackathons: List<HackathonItem>,
+    @param:Json(name = "viva_in_progress") val vivaInProgress: VivaInProgress?,
+    val matches: List<MatchItem>,
+)
+
+// ---------- GET /api/listings ----------
+data class Listing(
+    val id: String,
+    val title: String,
+    val venture: String,
+    val description: String,
+    @param:Json(name = "required_skills") val requiredSkills: Map<String, Double>,
+    val tags: List<String>,
+)
+
+data class ListingsResponse(
+    val listings: List<Listing>,
+)
+
+// ---------- POST /api/apply ----------
+data class ApplyRequest(
+    @param:Json(name = "student_id") val studentId: String,
+    @param:Json(name = "listing_id") val listingId: String,
+    @param:Json(name = "share_consent") val shareConsent: Boolean,
+)
+
+data class ApplyResponse(
+    @param:Json(name = "application_id") val applicationId: String,
+    val status: String,
+    val match: Int,
+)
+
+// ---------- POST /api/students/{student_id}/hackathons ----------
+data class HackathonCreateRequest(
+    val event: String,
+    val year: Int,
+    val result: String, // "winner", "finalist" or "participant"
+    @param:Json(name = "team_size") val teamSize: Int,
+    @param:Json(name = "repo_full_name") val repoFullName: String,
+)
+
+// ---------- DELETE /api/students/{student_id}/hackathons/{hackathon_id} ----------
+data class OkResponse(
+    val ok: Boolean,
+)
+```
+
+File: app/src/main/java/com/example/data/api/VerifiedBuildApi.kt
+```kotlin
+package com.example.data.api
+
+import retrofit2.http.Body
+import retrofit2.http.DELETE
+import retrofit2.http.GET
+import retrofit2.http.POST
+import retrofit2.http.Path
+
+// The student-facing endpoints of the VerifiedBuild API. Paths have no leading "/"
+// because ApiConfig.API_BASE ends with "/". The app never calls /api/admin/*.
+interface VerifiedBuildApi {
+    @GET("api/health")
+    suspend fun health(): HealthResponse
+
+    @POST("api/students")
+    suspend fun createStudent(@Body body: StudentCreateRequest): StudentCreatedResponse
+
+    @GET("api/github/{username}/repos")
+    suspend fun listRepos(@Path("username") username: String): ReposResponse
+
+    @POST("api/analyze")
+    suspend fun analyze(@Body body: AnalyzeRequest): AnalyzeResponse
+
+    @GET("api/viva/{sessionId}")
+    suspend fun vivaState(@Path("sessionId") sessionId: String): VivaStateResponse
+
+    @POST("api/viva/{sessionId}/answer")
+    suspend fun submitAnswer(@Path("sessionId") sessionId: String, @Body body: AnswerRequest): AnswerResponse
+
+    @GET("api/report/{studentId}")
+    suspend fun report(@Path("studentId") studentId: String): ReportResponse
+
+    @GET("api/listings")
+    suspend fun listings(): ListingsResponse
+
+    @POST("api/apply")
+    suspend fun apply(@Body body: ApplyRequest): ApplyResponse
+
+    @POST("api/students/{studentId}/hackathons")
+    suspend fun addHackathon(@Path("studentId") studentId: String, @Body body: HackathonCreateRequest): HackathonItem
+
+    @DELETE("api/students/{studentId}/hackathons/{hackathonId}")
+    suspend fun deleteHackathon(@Path("studentId") studentId: String, @Path("hackathonId") hackathonId: String): OkResponse
+}
+```
+
+Then add this section to the end of PROJECT_RULES.md, exactly:
+----- add to PROJECT_RULES.md -----
+## Contract v1.1 additions
+- Hackathon results (send exactly): winner = "Winner", finalist = "Finalist", participant = "Participant".
+- A hackathon entry is a claim until verified is true. Show unverified entries as "Not verified yet", never as achievements.
+- A student can verify a repo they own, or a teammate's or organisation's repo they have commits in. On team repos the questions are about the files they changed.
+- The report combines all finished vivas. Use report.vivaInProgress (not SessionStore) to decide whether a viva can be continued.
+----- end -----
+
+PART 2: Dashboard "Continue" uses the server's record
+In StudentDashboardScreen and AppViewModel:
+- Card B ("Finish your viva") now shows when report.vivaInProgress != null, whatever report.status is.
+  - Text: "{repo name of vivaInProgress.repoFullName} · {answered} of {total} answered".
+  - "Continue" calls viva.resume(vivaInProgress.sessionId, store.timeLimitS), then goes to Viva. If viva.state.error is set after resume, show its message on the Dashboard instead.
+- If status == "done" AND vivaInProgress != null: show card C first, then card B below it, smaller.
+- Card A shows only when report.repo == null and vivaInProgress == null.
+
+PART 3: Repo picker
 Create app/src/main/java/com/example/ui/screens/student/RepoPickerScreen.kt.
 - On open, AppViewModel loads GET /api/github/{store.githubUsername}/repos as Load<ReposResponse>.
 - Each row:
@@ -973,295 +1348,479 @@ Create app/src/main/java/com/example/ui/screens/student/RepoPickerScreen.kt.
   - the description, or "No description" in muted text;
   - "{language or 'Code'} · ★ {stars} · Updated {first 10 characters of pushedAt}". Don't use java.time: minSdk is 24.
 - Empty list: "No public repos found on @{username}. Push a project to GitHub, then tap Refresh." Add a Refresh button.
+- Below the list, a text button "Verify a team repo instead" that opens a small dialog with an "owner/repo" text field.
+  - Accept a full GitHub URL too: strip "https://github.com/" and anything after the second path part.
+  - Valid means ^[A-Za-z0-9-]{1,39}/[A-Za-z0-9._-]{1,100}$.
+  - Helper text: "A teammate's or organisation's repo you have commits in."
+  - "Start" goes to Analyzing(that repo).
 - Tapping a repo opens a dialog:
   Title "Verify {repo name}?"
-  Text "We'll read the code in this repo and ask you 5 questions about it. Answer by speaking or typing, in any language. Each question has 90 seconds."
-  If store.sessionId != null and the dashboard report status was "in_progress", add the line "This replaces your unfinished viva."
+  Text "We'll read the code and ask you 5 questions about it. Answer by speaking or typing, in any language. Each question has 90 seconds."
+  If report.vivaInProgress != null, add: "Your unfinished viva on {its repo name} will stay unfinished."
   Buttons "Start" and "Cancel". Start does navigate(Analyzing(fullName)).
 - Back goes to Dashboard.
 
-PART 2: Analyzing
+PART 4: Analyzing
 Create app/src/main/java/com/example/ui/screens/student/AnalyzingScreen.kt.
 - When Analyzing(repoFullName) becomes the current screen, AppViewModel starts POST /api/analyze ONCE with AnalyzeRequest(store.studentId, repoFullName).
-  - Keep the Job in the ViewModel. Ignore repeat calls while it runs (rotation and recomposition must not start a second analyze).
+  - Keep the Job in the ViewModel and ignore repeat calls while it runs; rotation must not start a second analyze.
   - Cancel the Job if the student presses Back.
-- UI: an indeterminate progress indicator and the text "Reading {repo name} and writing 5 questions about your code. This usually takes 15–30 seconds." Do not show fake step-by-step progress.
+- UI: an indeterminate progress indicator and "Reading {repo name} and writing 5 questions about your code. This usually takes 15–30 seconds." No fake step-by-step progress.
 - On Ok:
-  - store.sessionId = sessionId
-  - store.timeLimitS = timeLimitS
-  - viva.startFrom(value)
-  - then replace(Viva), so Analyzing leaves the back stack and Back from Viva never re-runs analyze.
-- On Err: show error.message with two buttons: "Try again" (runs analyze again) and "Pick another repo" (back to RepoPicker).
+  - Keep the AnalyzeResponse in AppViewModel as lastAnalysis.
+  - store.sessionId = sessionId; store.timeLimitS = timeLimitS.
+  - viva.startFrom(value).
+  - replace(RepoFound).
+- On Err: show error.message with "Try again" (runs analyze again) and "Pick another repo" (back to RepoPicker).
 
-PART 3: Viva screen
+PART 5: "What we found in your repo"
+Add the destination RepoFound to Screen. Create app/src/main/java/com/example/ui/screens/student/RepoFoundScreen.kt, built from lastAnalysis only.
+- Title: "We read {repo name}". Subtitle: "{repo.filesRead} files read".
+- A languages bar: one horizontal bar split by repo.languages percentages (largest first; anything after the 4th grouped as "Other"), with a legend under it showing name and %.
+- If contribution.teamRepo: a card titled "Team repo".
+  Text: "You made {yourCommits} commits here. Your questions are about the files you changed:"
+  Then up to 5 of focusFiles in monospace.
+- "What your code shows": one row per repoSkills item, with the tag display-name chip and its evidence sentence.
+- Note: "Your 5 questions point at specific lines of this code. Each has 90 seconds. Speak or type, in any language."
+- Primary button "Start question 1" does replace(Viva).
+- Back goes to Dashboard; the viva stays saved and can be continued.
+
+PART 6: Wire it up
+- VerifiedBuildApp: RepoPicker, Analyzing and RepoFound show the new screens. Viva, VivaComplete and Report stay placeholders until Stages 4 and 5.
+- Dashboard "Pick a repo" and "Verify another repo" go to RepoPicker.
+
+DO NOT
+- Do not change any locked file other than the two this stage replaces.
+- Do not change Gradle files, the manifest, applicationId or namespace.
+- Do not compute or invent anything on the RepoFound screen. Every number and sentence comes from the AnalyzeResponse.
+
+DONE WHEN
+- The project builds.
+- Picking one of your repos shows Analyzing, then "We read …" with real languages, files read and skills with evidence. "Start question 1" opens the Viva placeholder.
+- A teammate's repo you have commits in shows the "Team repo" card. A repo you have no commits in shows the API's REPO_NOT_OWNED message.
+- Leaving and reopening the app shows "Finish your viva" on the Dashboard.
+
+REPORT BACK
+List every file you created, changed or deleted.
+
+END OF STAGE 3
+````
+
+Commit message: `Update the API layer to v1.1 and add repo picking and the repo summary screen`
+
+---
+
+### STAGE 4: the viva
+
+````text
+STAGE 4 of 7. First read PROJECT_RULES.md in the project root and follow it exactly.
+
+WHERE THE PROJECT IS NOW
+- The API layer is v1.1.
+- RepoPicker → Analyzing → RepoFound work, and "Start question 1" does replace(Viva).
+- Viva and VivaComplete are placeholders. VivaController already holds the viva state, and AppViewModel.lastAnalysis holds the analyze response.
+
+GOAL
+The student answers 5 questions about their code, by voice or text, with follow-ups for weak answers. The viva can be left and continued later.
+
+FIRST, PLAN
+Before changing code, list the files you will create, change and delete in this stage. Then make the changes.
+
+PART 1: Viva screen
 Create app/src/main/java/com/example/ui/screens/student/VivaScreen.kt. You may reuse layout ideas and styling from AiInterviewScreen.kt, then DELETE AiInterviewScreen.kt and ProjectDetailScreen.kt.
-The screen reads ONLY viva.state (VivaUiState) and calls only the VivaController functions, through AppViewModel. Never show a score or a rubric (the API doesn't send them).
+The screen reads ONLY viva.state (VivaUiState), plus lastAnalysis for the label below. It calls only the VivaController functions, through AppViewModel. Never show a score or a rubric (the API doesn't send them).
 
 Top bar:
 - "Question {questionNumber} of {questions.size}" and a LinearProgressIndicator at answeredIds.size / questions.size.
 - A close (X) button. It asks "Leave the viva? Your answers so far are saved. You can continue from your dashboard." with Leave and Stay. Leave discards any recording and goes to Dashboard.
-- Keep the screen awake while this screen is shown: LocalView.current.keepScreenOn = true inside a DisposableEffect, reset in onDispose.
+- Keep the screen awake while this screen shows: LocalView.current.keepScreenOn = true inside a DisposableEffect, reset in onDispose.
 
 Question area, for currentQuestion:
-- Chips for difficulty ("Easy", "Medium", "Hard") and the skill display name from PROJECT_RULES.md.
+- Chips: difficulty ("Easy", "Medium", "Hard") and the skill display name.
+- If lastAnalysis?.contribution?.focusFiles contains currentQuestion.file: a small label "You changed this file".
 - A code card:
   - header "{file} · lines {lines}";
-  - the snippet in a monospace font, each line prefixed by its line number starting at snippetStartLine;
-  - no line wrapping, horizontal scroll, maximum height 280dp with vertical scroll;
+  - the snippet in monospace, each line prefixed by its line number starting at snippetStartLine;
+  - no wrapping, horizontal scroll, maximum height 280dp with vertical scroll;
   - no copy button.
 - The question text, large.
-- If state.followUp != null: show the original question smaller and muted, and above it a highlighted card titled "One more chance on this question" with the followUp text. The answer now goes to the follow-up, and VivaController handles that automatically.
-- If state.lastTranscript != null: a small card "Answer saved. We heard: “{lastTranscript}”" with a close icon that calls viva.clearTranscript(). This tells the student the previous answer was recorded.
+- If state.followUp != null: show the original question smaller and muted, with a highlighted card above it titled "One more chance on this question" holding the followUp text. VivaController sends the next answer to the follow-up.
+- If state.lastTranscript != null: a small card "Answer saved. We heard: “{lastTranscript}”" with a close icon that calls viva.clearTranscript().
 
 Timer:
 - Restart a countdown from state.timeLimitS whenever the current question or the follow-up changes. Show it as m:ss.
-- At 0: if recording, stop the recording but KEEP it. Show "Time's up. Submit what you have."
-- Never submit automatically. The Submit button stays available.
+- At 0: if recording, stop it but KEEP the recording. Show "Time's up. Submit what you have."
+- Never submit automatically.
 
-Answer area, with two tabs: "Speak" (the default) and "Type". Keep the answer input (the RecordedAnswer, the typed text, the pasted flag and when the question appeared) in AppViewModel, not in the composable, so rotating the phone loses nothing. Reset it whenever the question or follow-up changes, but NOT after an error, so the same answer can be retried.
+Answer area, with two tabs: "Speak" (the default) and "Type".
+Keep the answer input (the RecordedAnswer, the typed text, the pasted flag and when the question appeared) in AppViewModel, not in the composable, so rotation loses nothing. Reset it when the question or follow-up changes, but NOT after an error, so the same answer can be retried.
 
 Speak tab:
-- Ask for RECORD_AUDIO with rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) the first time the student taps the mic.
+- Ask for RECORD_AUDIO with rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) the first time the mic is tapped.
   If denied, show "Microphone access is off. You can type your answer instead." and switch to Type.
 - Idle: a big round mic button and "Tap to start speaking". It calls recorder.start(). If start() throws, show "We couldn't start the microphone. You can type your answer instead."
-- Recording: a red stop button and "Recording {m:ss} · tap to stop". Update the elapsed time from recorder.elapsedSeconds() once a second.
+- Recording: a red stop button and "Recording {m:ss} · tap to stop", updated once a second from recorder.elapsedSeconds().
 - Stopped: val rec = recorder.stop().
   - If rec is null: "That recording was too short. Please try again."
-  - Otherwise show "Recorded {m:ss}" with the buttons "Submit answer" and "Record again" (Record again discards it and starts over).
+  - Otherwise show "Recorded {m:ss}" with "Submit answer" and "Record again" (Record again discards it and starts over).
 - Submit: viva.submit(mode = "voice", audioBase64 = rec.audioBase64, audioMime = rec.mime, durationS = rec.seconds).
 
 Type tab:
-- A multi-line OutlinedTextField with at least 6 lines and the placeholder "Explain in your own words. Any language is fine."
-  Stop input at 6000 characters.
+- A multi-line OutlinedTextField, at least 6 lines, placeholder "Explain in your own words. Any language is fine." Stop input at 6000 characters.
 - Paste rule: if one onValueChange makes the text 25 or more characters longer at once, set pasted = true for this answer. It stays true until the question changes.
 - Submit (enabled when the text isn't blank):
   viva.submit(mode = "text", answerText = text, durationS = seconds since this question or follow-up appeared (at most 3600), pasted = pasted).
 
 While state.loading:
 - Disable all input and buttons.
-- Show "Saving your answer…". Spoken answers take about 6 seconds, typed ones about 3.
+- Show "Saving your answer…". Spoken answers take about 6 s, typed about 3 s.
 
 Errors (state.error != null):
 - Show error.message in a card.
 - If state.canRetry: a "Try again" button that calls viva.retry().
-- Otherwise: an "OK" button that calls viva.clearError(), and the student can record or type again.
+- Otherwise: an "OK" button that calls viva.clearError(), and the student records or types again.
 
-When state.done becomes true: replace(VivaComplete), so Viva leaves the back stack.
-Back button on this screen: the same Leave dialog as the close button.
+When state.done becomes true: replace(VivaComplete).
+The Back button on this screen shows the same Leave dialog.
 
-PART 4: Viva complete
+PART 2: Viva complete
 Create app/src/main/java/com/example/ui/screens/student/VivaCompleteScreen.kt:
 - Title "Viva complete". Text "Your report is ready."
+- When it opens:
+  - set store.sessionId = null;
+  - reload reportState;
+  - if a report.hackathons item has the same repoFullName as the viva (lastAnalysis?.repo?.fullName) and verified is true, show a highlighted card: "This viva also verified: {Result} at {event} {year}".
 - Buttons "See my report" (goes to Report) and "Back to dashboard".
-- When it opens, set store.sessionId = null.
 - Back goes to Dashboard.
 
-PART 5: Wire it up
-- VerifiedBuildApp: RepoPicker, Analyzing, Viva and VivaComplete show the new screens. Remove their placeholders.
-- Dashboard "Continue" (from Stage 2) must now open the real Viva screen after viva.resume(...). If viva.state has an error after resume, show it on the Dashboard instead.
+PART 3: Wire it up
+- VerifiedBuildApp: Viva and VivaComplete show the new screens. Remove their placeholders.
 
 DO NOT
-- Do not change the 7 files from Stage 1, Gradle files, the manifest, applicationId or namespace.
+- Do not change the locked files, Gradle files, the manifest, applicationId or namespace.
 - Do not use Android SpeechRecognizer, Gemini or any transcription in the app. The API transcribes the audio.
-- Do not store questions or answers on the phone. The API is the record. The phone stores only the ids in SessionStore.
+- Do not store questions or answers on the phone. The API is the record.
 
 DONE WHEN
 - The project builds.
-- A full viva works on a real phone: 5 questions answered by voice and by text, a follow-up appears for a weak answer, leaving and continuing works, and it ends on Viva complete.
+- A full viva works on a real phone:
+  - 5 questions, answered by voice and by text;
+  - a weak typed answer ("not sure") gets "One more chance on this question";
+  - leaving and continuing from the Dashboard resumes at the right question;
+  - it ends on Viva complete.
 
-END OF STAGE 3
+REPORT BACK
+List every file you created, changed or deleted.
+
+END OF STAGE 4
 ````
 
-Commit message: `Pick a repo, start a viva and answer by voice or text`
+Commit message: `Answer the viva by voice or text, with follow-ups and resume`
 
 ---
 
-### STAGE 4: report, matches, apply with consent
+### STAGE 5: the report: You said / You showed, code next to every answer, matches, apply
 
 ````text
-STAGE 4 of 5. First read PROJECT_RULES.md in the project root and follow it exactly.
+STAGE 5 of 7. First read PROJECT_RULES.md in the project root and follow it exactly.
+
+WHERE THE PROJECT IS NOW
+- The whole viva works, and ends on VivaComplete.
+- Report is a placeholder.
+- reportState and the listings are loaded by AppViewModel.
 
 GOAL
-Show the student's report from GET /api/report/{student_id}, with verified skills, claimed vs verified, evidence for every answer, build history and matched internships. Let them apply with explicit consent (POST /api/apply).
+The report a judge remembers:
+- what the student claimed next to what they showed;
+- every answer next to the exact code it was about;
+- verified hackathons;
+- internships matched on verified skills, with a consent step to apply.
+
+FIRST, PLAN
+Before changing code, list the files you will create, change and delete in this stage. Then make the changes.
 
 PART 1: Radar chart
 Change app/src/main/java/com/example/ui/components/RadarChart.kt:
-- InteractiveRadarChart now takes dimensions: List<RadarDimension> instead of AssessmentReportEntity. Keep its drawing, animation and tap-to-select behaviour.
+- InteractiveRadarChart now takes dimensions: List<RadarDimension> instead of AssessmentReportEntity. Keep its drawing, animation and tap-to-select.
 - Remove the 8 hard-coded dimensions and their hard-coded descriptions and recommendations.
 - RadarDimension keeps its fields (title, score, description, recommendation). If recommendation is blank, don't draw it.
-- RadarChart.kt must no longer import anything from data/model.
+- RadarChart.kt must not import anything from data/model.
 
 PART 2: Report screen
-Create app/src/main/java/com/example/ui/screens/student/ReportScreen.kt. Reuse the visual style from AssessmentReportScreen.kt, then DELETE AssessmentReportScreen.kt.
-Data: AppViewModel.reportState from Stage 2. Reload it when the screen opens. Also use the listings from Stage 2.
+Create app/src/main/java/com/example/ui/screens/student/ReportScreen.kt. Reuse the visual style of AssessmentReportScreen.kt, then DELETE AssessmentReportScreen.kt.
+Reload reportState when the screen opens.
 
 If report.status != "done":
-- Show only a card "Finish your viva to see your scores", with the Dashboard's Continue behaviour.
+- Show only a card "Finish your viva to see your scores", with the Dashboard's Continue behaviour (report.vivaInProgress).
 - Show no numbers.
 
 If report.status == "done", show these sections in order:
-1. Header: student name, college, "@{githubUsername}", and "Repo: {repo.fullName}".
-2. Overall: "{overall}/100" (large, ScoreBadge) and the caption "Average score of your 5 answers".
-3. Radar chart: 6 dimensions, one per skill tag in the order and with the display names in PROJECT_RULES.md.
+
+1. Header: student name, college, "@{githubUsername}".
+   - If report.evidence spans more than one repoFullName: "Based on {n} repos" with the repo names.
+   - Otherwise: "Repo: {repo.fullName}".
+
+2. Overall: "{overall}/100" (large, ScoreBadge), with the caption "Average score of every answer".
+   When the screen first opens, animate the number counting up from 0 over about 800 ms.
+
+3. "You said / You showed": a two-column table with the column headers "You said" and "You showed". One row per report.claimedVsVerified item, in order:
+   - claimed == true: left = the skill name as a SkillChip; right = the level chip.
+   - claimed == false: left = "—" in muted text; right = the tag display name and the level chip, with a small "not on your profile" under it.
+   - Level chip labels and colours come from PROJECT_RULES.md.
+   - Caption: "Only what you showed counts toward matches."
+
+4. Radar chart: 6 dimensions, one per skill tag in the order and with the display names in PROJECT_RULES.md.
    - title = the tag display name;
    - score = report.skills[tag] ?: 0;
    - description = "{level label} · {score}/100" when the tag is in report.skills, otherwise "Not shown · your repo had no question on this skill";
      the level label comes from the API's thresholds: 70 or more is Strong, 40–69 is Partial, below 40 is Not verified. That is the only thing the app derives; it never computes a score;
    - recommendation = "".
-   - Below the chart, the caption: "Only skills you showed in the viva count. Claimed skills alone count for nothing."
-4. "Claimed vs verified": one row per item in report.claimedVsVerified, in the order given.
-   - claimed == true: the skill name, the tag display name, and a level chip.
-   - claimed == false: the tag display name, the text "Shown in your repo, not on your profile", and a level chip.
-   - Level chip labels and colours come from PROJECT_RULES.md.
-5. "Your answers": one card per report.evidence item, in order:
-   - "Q{index+1} · {skill display name} · {score}/10";
+
+5. "Your hackathons" (only if report.hackathons is not empty). One row per item:
+   - "{Result} · {event} {year}" and "{repo name} · team of {teamSize}".
+   - verified == true: an emerald "Verified" chip, then "Viva {vivaScore}/100 · {round(yourCommitShare * 100)}% of commits by you". If yourCommitShare is null, leave out that part.
+   - verified == false: a neutral "Not verified yet" chip, with a "Verify now" button that goes to Analyzing(repoFullName).
+
+6. "Your answers": one card per report.evidence item, in order:
+   - "Q{n} · {skill display name} · {score}/10";
    - the question;
-   - "{file} · lines {lines}" in monospace, muted;
    - "Your answer:" and answerExcerpt;
    - if evidenceQuote is not blank: the quote in italics, between curly quotes, with a left border;
-   - "Covered", with a ✓ per item (emerald). Hide if empty.
-   - "Missed", with a • per item (muted). Hide if empty.
+   - "Covered" with a ✓ per item (emerald), and "Missed" with a • per item (muted). Hide either if empty.
+   - a "Show the code" toggle that expands a code block:
+     - header "{repoFullName} · {file} · lines {lines}";
+     - the snippet with line numbers from snippetStartLine;
+     - monospace, horizontal scroll, maximum height 240dp.
    - a footer of plain facts, all in the same neutral grey: a Mic icon with "Spoken" or a Keyboard icon with "Typed"; "{durationS}s" if not null; "Follow-up asked" if hadFollowUp; "Text was pasted" if pasted.
-6. "How the repo was built (from GitHub)": only if buildHistory != null. Three lines:
+
+7. "How the repo was built (from GitHub)": only if buildHistory != null.
    - "{commits} commits over {spanDays} days, active on {activeDays} days"
    - "{authors} author(s) · {round(yourCommitShare * 100)}% of commits by you"
    - "Median {medianLinesPerCommit} lines changed per commit"
-   Caption: "Facts from GitHub. They don't change your score."
-7. "Internships matched on your verified skills": one card per report.matches item, in the order given.
-   - title, venture, "{match}% match" (ScoreBadge) and the why text;
+   - Caption: "Facts from GitHub. They don't change your score."
+
+8. "Internships matched on what you showed": one card per report.matches item, in order:
+   - title, venture, "{match}% match" (ScoreBadge), and the why text;
    - the listing's description and tags, joined from the listings by id = listingId (tags as SkillChip with the interest labels);
-   - an Apply button, or a disabled "Applied ✓" if applied is true.
+   - an Apply button, or a disabled "Applied ✓" if applied.
 
 PART 3: Apply with consent
 - Apply opens a dialog:
   Title "Apply to {title} at {venture}?"
-  Text "Applying shares your VerifiedBuild report (scores, answers and evidence) with {venture} for this role. Nobody else sees it."
+  Text "Applying shares your VerifiedBuild report (scores, answers, code evidence and hackathons) with {venture} for this role. Nobody else sees it."
   Checkbox "I agree to share my report with {venture}."
-  "Apply" is enabled only when the box is checked. Also a "Cancel" button.
-- On Apply: AppViewModel calls POST /api/apply with ApplyRequest(store.studentId, listingId, shareConsent = true). Disable the dialog while it's sending.
-- On Ok: close the dialog, show the snackbar "Applied. {venture} can now see your report.", and reload the report so the card shows "Applied ✓".
+  "Apply" is enabled only when the box is checked, plus a "Cancel" button.
+- On Apply: POST /api/apply with ApplyRequest(store.studentId, listingId, shareConsent = true). Disable the dialog while it's sending.
+- On Ok: close the dialog, show the snackbar "Applied. {venture} can now see your report.", and reload the report.
 - On Err:
-  - if code == "ALREADY_APPLIED": close the dialog and reload the report;
-  - otherwise show error.message in the dialog.
+  - code == "ALREADY_APPLIED": close the dialog and reload;
+  - otherwise: show error.message in the dialog.
 
 PART 4: Wire it up
 - VerifiedBuildApp: Report shows ReportScreen. Remove its placeholder. Back goes to Dashboard.
-- Dashboard "View report" and "See all and apply" go to Report. VivaComplete "See my report" goes to Report.
+- Dashboard "View report" and "See all and apply", and VivaComplete "See my report", go to Report.
 
 DO NOT
-- Do not change the 7 files from Stage 1, Gradle files, the manifest, applicationId or namespace.
-- Do not show warning colours or words for "pasted" or for the build history. They are neutral facts.
-- Do not compute any score in the app. Show the API's numbers exactly.
+- Do not change the locked files, Gradle files, the manifest, applicationId or namespace.
+- Do not use warning colours or words for "pasted", for the build history, or for "Not verified yet". They are neutral facts.
+- Do not compute any score. Show the API's numbers exactly.
 
 DONE WHEN
 - The project builds.
-- After a finished viva: the report shows every section with the API's numbers, applying needs the tick box, a second apply is impossible, and the card shows "Applied ✓".
+- After a finished viva, the report shows every section with the API's numbers, and "Show the code" opens the right lines.
+- Applying needs the tick box, a second apply is impossible, and the card shows "Applied ✓".
 
-END OF STAGE 4
+REPORT BACK
+List every file you created, changed or deleted.
+
+END OF STAGE 5
 ````
 
-Commit message: `Show the report, matches and apply with consent`
+Commit message: `Show the report with claimed vs shown, code evidence, matches and consent to apply`
 
 ---
 
-### STAGE 5: remove leftovers, polish, final checks
+### STAGE 6: hackathons
 
 ````text
-STAGE 5 of 5. First read PROJECT_RULES.md in the project root and follow it exactly.
+STAGE 6 of 7. First read PROJECT_RULES.md in the project root and follow it exactly.
+
+WHERE THE PROJECT IS NOW
+- Sign-up, dashboard, repo picker, analyzing, RepoFound, the viva and the report all work.
+- The report already lists report.hackathons, with "Verify now" for unverified ones.
 
 GOAL
-Remove everything left from the old app, make every screen handle loading, empty and error states, and check the rules across the whole project.
+Students add their hackathons (event, result, team size, project repo) and verify each one with a viva on its repo. This is the third input of the problem statement, next to skills and interests.
+
+FIRST, PLAN
+Before changing code, list the files you will create, change and delete in this stage. Then make the changes.
+
+PART 1: "Your hackathons" on the Dashboard
+- Add a section "Your hackathons" below the main card(s), built from report.hackathons. Use the same row layout as the report (Verified chip / Not verified yet chip, and "Verify now").
+- Empty state: "Add the hackathons you've done. Each one counts toward your matches once you verify it with a viva on its repo."
+- Button "Add a hackathon".
+- Each row has an overflow menu with "Remove". Confirm with "Remove {event} {year} from your profile?", then DELETE /api/students/{store.studentId}/hackathons/{hackathonId} and reload the report.
+
+PART 2: Add a hackathon
+Create app/src/main/java/com/example/ui/screens/student/AddHackathonSheet.kt, a ModalBottomSheet opened from the Dashboard:
+- Event name: required, at most 120 characters, placeholder "e.g. Smart City Hackathon".
+- Year: a number field, default = the current year. Use Calendar.getInstance(), not java.time. Must be between 2000 and 2100.
+- Result: three segmented buttons, Winner / Finalist / Participant. Send "winner", "finalist" or "participant".
+- Team size: a stepper from 1 to 20, default 1.
+- Project repo, with two options:
+  a. "One of my repos": a dropdown filled from GET /api/github/{store.githubUsername}/repos. Reuse the repo list already loaded for RepoPicker if there is one.
+  b. "A teammate's or organisation's repo": an "owner/repo" text field, with the same normalising and validation as in RepoPicker's team-repo dialog.
+     Helper: "You need commits in it. On team repos, your viva asks about the files you changed."
+- Button "Add":
+  - POST /api/students/{store.studentId}/hackathons with HackathonCreateRequest(event, year, result, teamSize, repoFullName).
+  - Disable the sheet while it's sending.
+  - On Ok: close the sheet, reload the report, and show the snackbar "Added. Verify it with a viva on {repo name}." with the action "Verify now", which goes to Analyzing(repoFullName).
+  - On Err: show error.message in the sheet and keep what was typed. REPO_NOT_OWNED and REPO_NOT_FOUND come with clear messages from the API.
+
+PART 3: Verify flow
+- "Verify now", from the Dashboard, the Report or the snackbar, goes to Analyzing(repoFullName). The rest is the normal flow: RepoFound, Viva, VivaComplete.
+- VivaComplete already shows "This viva also verified: …" (Stage 4). Make sure it appears after verifying a hackathon repo.
+
+DO NOT
+- Do not change the locked files, Gradle files, the manifest, applicationId or namespace.
+- Do not show an unverified hackathon as an achievement: no trophy icons or celebratory colours until verified is true.
+- Do not invent example hackathons, and do not prefill the event name.
+
+DONE WHEN
+- The project builds.
+- Adding a hackathon on one of your repos shows it as "Not verified yet". Verify now → a viva → VivaComplete says it was verified → the Dashboard and Report show "Verified" with the viva score.
+- A repo you have no commits in is refused with the API's message.
+- Remove takes the entry off after confirmation.
+
+REPORT BACK
+List every file you created, changed or deleted.
+
+END OF STAGE 6
+````
+
+Commit message: `Add hackathons and verify them with a viva on their repo`
+
+---
+
+### STAGE 7: cleanup, polish and demo readiness
+
+````text
+STAGE 7 of 7. First read PROJECT_RULES.md in the project root and follow it exactly.
+
+WHERE THE PROJECT IS NOW
+Every screen is built: Welcome, Onboarding, Dashboard (with hackathons), RepoPicker, Analyzing, RepoFound, Viva, VivaComplete and Report.
+
+GOAL
+Remove what's left of the old app, check the rules across the whole project, and make the app feel solid in a live demo.
+
+FIRST, PLAN
+Before changing code, list the files you will create, change and delete in this stage. Then make the changes.
 
 PART 1: Delete the old local data layer
 - Delete app/src/main/java/com/example/data/model/Entities.kt, app/src/main/java/com/example/data/dao/AppDao.kt and app/src/main/java/com/example/data/db/AppDatabase.kt.
-- Fix any file that still referenced them. No Kotlin file may import com.example.data.model, com.example.data.dao, com.example.data.db or com.example.network.
-- Remove every placeholder screen from Stage 1. Every Screen destination now shows its real screen.
-- Leave the Gradle files exactly as they are, even if some dependencies are now unused.
+- Fix anything that still referenced them. No Kotlin file may import com.example.data.model, com.example.data.dao, com.example.data.db or com.example.network.
+- Remove every placeholder screen. Leave the Gradle files exactly as they are, even if some dependencies are now unused.
 
 PART 2: Search the whole project and fix every hit
-- Banned in Kotlin code: BuildConfig.GEMINI_API_KEY, "generativelanguage", "api.github.com", "firebase.ai", "SpeechRecognizer", "androidx.room". The app calls only ApiConfig.API_BASE.
+- Banned in Kotlin code: BuildConfig.GEMINI_API_KEY, "generativelanguage", "api.github.com", "firebase.ai", "SpeechRecognizer", "androidx.room". The app talks only to ApiConfig.API_BASE.
 - No invented people, companies, colleges, events or data in strings, sample data or hard-coded values. Remove any such use of: Google, Atlassian, Razorpay, IIT, VIT, BITS, HackMIT, NeurIPS, Smart India Hackathon, Aarav, Ananya, Rohan, Vikram, Sarah, Aditya, CloudPulse, CloudMatrix, "749210", or default scores such as 85.
+  (The "e.g. Smart City Hackathon" placeholder in AddHackathonSheet is allowed: it's a hint, not data.)
   Package names and imports (com.google.*, androidx.*, com.squareup.*) are code, not data. Do not touch them, or any identifier that merely contains these letters.
-  (The 6 internship ventures, SaaSum, Maceco, Promtal, Skill Tank, Vriddhi and Tobofu, come from the API at runtime. Don't hard-code them either.)
 - Banned words in user-visible text: detect, catch, cheat, flag, suspicious, integrity, fraud, plagiarism, AI-powered, revolutionary, seamless, leverage, empower.
-- No user-visible "NexusIntern". Leave rootProject.name in settings.gradle.kts and applicationId unchanged; they aren't user-visible.
+- No user-visible "NexusIntern". Leave rootProject.name and applicationId unchanged.
 
-PART 3: States on every screen
-- Every screen that loads data shows:
-  - a progress indicator while loading;
-  - the API's error message with a "Retry" button on failure;
-  - a helpful empty state where a list can be empty.
-- Every button that starts an API call is disabled until the call finishes.
-- Back behaviour:
-  - Welcome and Dashboard: back closes the app.
-  - Onboarding: back goes to Welcome.
-  - RepoPicker: back goes to Dashboard.
-  - Analyzing: back cancels and returns to RepoPicker.
-  - Viva: back shows the Leave dialog.
-  - VivaComplete and Report: back goes to Dashboard.
+PART 3: States and back behaviour
+- Every screen that loads data has a progress indicator, the API's error message with Retry, and an empty state for lists.
+- Every button that starts an API call is disabled until it finishes.
+- Back:
+  - Welcome and Dashboard close the app.
+  - Onboarding goes to Welcome.
+  - RepoPicker goes to Dashboard.
+  - Analyzing cancels and goes to RepoPicker.
+  - RepoFound goes to Dashboard.
+  - Viva shows the Leave dialog.
+  - VivaComplete and Report go to Dashboard.
 
-PART 4: Accessibility and layout
+PART 4: Feel
+- Haptics: LocalHapticFeedback.current.performHapticFeedback(HapticFeedbackType.LongPress) when recording starts, when it stops, and when "Answer saved" appears.
+- Transitions: a short fade (about 200 ms) when the viva moves to the next question or a follow-up appears. Use AnimatedContent keyed by questionId + followUp.
+- The Report's overall number counts up once per screen visit (from Stage 5). Make sure it doesn't restart on rotation.
+
+PART 5: Accessibility and layout
 - Every icon-only button has a contentDescription.
 - Touch targets are at least 48dp.
 - Text uses MaterialTheme typography, so it scales with the system font size.
-- Every screen scrolls on a small phone (360dp wide) without anything cut off.
+- Every screen scrolls on a 360dp-wide phone with nothing cut off, including at the largest system font.
 
-PART 5: Report back
-When done, list:
+PART 6: Report back
+List:
 (1) every file you deleted;
 (2) every file you created or changed;
 (3) the result of each search in Part 2, with any remaining hit and why it stays.
 
 DONE WHEN
 - The project builds.
-- All the Part 2 searches come back clean.
-- The full journey works on a real phone: Welcome → sign up → dashboard → pick a repo → analyze → 5 answers (voice and text, with a follow-up) → viva complete → report → apply.
+- The Part 2 searches are clean.
+- The full journey works on a real phone, from a fresh install: Welcome → sign up → dashboard → add a hackathon → verify it (repo found → 5 answers with voice, text and a follow-up → viva complete) → report → apply.
 
-END OF STAGE 5
+END OF STAGE 7
 ````
 
-Commit message: `Remove the old local data layer and polish every screen`
+Commit message: `Remove the old local data layer, polish every screen and check the rules`
 
 ---
 
 ## Part C: checks to run on a real phone after each stage
 
-Use your own GitHub username and one of your public repos that has real code.
+Use your own GitHub username, and one of your public repos with real code.
 
 **Stage 1**
 - [ ] The app opens on Welcome and shows "Connected".
-- [ ] With the phone in airplane mode, Welcome shows an error and Retry. Turn the network back on, tap Retry, and it shows "Connected".
+- [ ] In airplane mode, Welcome shows an error and Retry. Turn the network back on, tap Retry, and it shows "Connected".
 - [ ] Recruiter and admin screens are gone. The launcher name is "VerifiedBuild".
 
 **Stage 2**
 - [ ] Sign up with skill chips only. You land on the Dashboard with "Verify your skills".
 - [ ] Sign out, then sign up again with a PDF resume. It works, and takes a few seconds longer.
-- [ ] GitHub username `no-such-user-zz-998877` shows "We couldn't find that GitHub username." and keeps what you typed.
+- [ ] The username `no-such-user-zz-998877` shows "We couldn't find that GitHub username." and keeps what you typed.
 - [ ] Pasting `https://github.com/yourname` into the username field still works.
-- [ ] Close the app fully and reopen it. It opens on the Dashboard, not Welcome.
-- [ ] Sign out returns you to Welcome.
-- [ ] No percentages are shown on the Dashboard before a viva.
+- [ ] Close the app fully and reopen it. It opens on the Dashboard.
+- [ ] No percentages are shown before a viva.
 
 **Stage 3**
+- [ ] `/api/health` shows `"version":"v1.1"` before you start.
 - [ ] Your repos are listed, newest first.
-- [ ] Starting a viva shows the analyzing screen for about 15–30 s, then Question 1 of 5 with real code from your repo, with the right line numbers.
-- [ ] Rotating the phone during analyzing doesn't start a second analyze.
-- [ ] Answer one question by voice. After about 6 s you see "Answer saved. We heard: …" with what you said.
-- [ ] Answer one in Hindi, Telugu or Hinglish. The transcript keeps your words.
-- [ ] Type a deliberately weak answer ("not sure"). "One more chance on this question" appears with a follow-up.
-- [ ] Tap Submit twice quickly. Only one answer is recorded, and the viva moves on normally.
-- [ ] Leave in the middle (X → Leave), close the app, reopen, and tap Dashboard → Continue. It resumes at the right question.
-- [ ] Let the timer run to 0 while recording. The recording stops, is kept, and can still be submitted.
-- [ ] After question 5 you see "Viva complete".
+- [ ] Picking one shows Analyzing for about 15–30 s, then "We read …" with the languages bar, files read, and skills with evidence sentences that mention your real files.
+- [ ] Rotating during Analyzing doesn't start a second analyze.
+- [ ] "Verify a team repo instead" with a teammate's repo you committed to shows the "Team repo" card. With `torvalds/linux` it shows the API's refusal.
+- [ ] Press Back on "We read …", close the app and reopen it. The Dashboard shows "Finish your viva".
 
 **Stage 4**
-- [ ] The report shows overall /100, a radar with 6 axes (unasked skills shown as "Not shown"), claimed vs verified, 5 answer cards with quotes, build history, and the internships.
-- [ ] The numbers match the API. Open `/api/report/<your student_id>` in a browser to compare (SAM can give you the id from Supabase).
-- [ ] Apply is disabled until the tick box is checked. After applying, the card shows "Applied ✓", and SAM can see you in the recruiter shortlist.
+- [ ] Question 1 of 5 shows real code with the right line numbers.
+- [ ] A voice answer shows "Answer saved. We heard: …" after about 6 s.
+- [ ] A Hindi, Telugu or Hinglish answer keeps your words in the transcript.
+- [ ] A typed "not sure" gets "One more chance on this question".
+- [ ] Tapping Submit twice quickly records one answer, and the viva carries on normally.
+- [ ] X → Leave, close the app, reopen, then Continue on the Dashboard: it resumes at the right question.
+- [ ] Let the timer reach 0 while recording. The recording stops, is kept, and can be submitted.
+- [ ] After question 5 you see "Viva complete".
 
 **Stage 5**
-- [ ] Run the whole journey once more from a fresh install (uninstall first).
-- [ ] Turn on the largest system font: nothing is cut off and every screen scrolls.
+- [ ] The report shows, in order: overall (counting up), You said / You showed, the radar with "Not shown" axes, your answers with "Show the code" opening the right lines, build history, and internships.
+- [ ] The numbers match `/api/report/<student_id>` in a browser (SAM can give you the id).
+- [ ] Apply is disabled until you tick the box. After applying the card shows "Applied ✓", and SAM sees you in the recruiter shortlist.
+
+**Stage 6**
+- [ ] Add a hackathon on one of your repos. It shows "Not verified yet".
+- [ ] Verify now → viva → "This viva also verified: …" → it shows "Verified · Viva N/100" on the Dashboard and the Report.
+- [ ] The match percentages on the Report go up a little after verifying (verified hackathons count 15%).
+- [ ] A hackathon on a repo you've never committed to is refused with the API's message.
+- [ ] Remove works after confirming.
+
+**Stage 7**
+- [ ] The full journey from a fresh install (uninstall first).
+- [ ] At the largest system font nothing is cut off.
+- [ ] You feel a small vibration when recording starts and stops.
 
 ---
 
@@ -1272,14 +1831,24 @@ Use your own GitHub username and one of your public repos that has real code.
 ```text
 The build fails with this error:
 <paste the exact error lines>
-Fix only this error. Follow PROJECT_RULES.md. Do not change the files from Stage 1 (data/api/*, data/SessionStore.kt, data/ResumePicker.kt, audio/AnswerRecorder.kt, viva/VivaController.kt), Gradle files, the manifest, applicationId or namespace. Tell me which files you changed.
+Fix only this error. Follow PROJECT_RULES.md. Do not change the locked files (data/api/*, data/SessionStore.kt, data/ResumePicker.kt, audio/AnswerRecorder.kt, viva/VivaController.kt), Gradle files, the manifest, applicationId or namespace. Tell me which files you changed.
 ```
 
 **A screen behaves wrongly:** paste this, filled in:
 
 ```text
-On the <screen name> screen, when I <what you did>, I expected <what should happen per the stage prompt> but got <what happened>.
-Fix only this, following PROJECT_RULES.md and the stage prompt. Do not change the files from Stage 1. Tell me which files you changed.
+On the <screen> screen, when I <what you did>, I expected <what the stage prompt says should happen> but got <what happened>.
+Fix only this, following PROJECT_RULES.md and the stage prompt. Do not change the locked files. Tell me which files you changed.
 ```
 
-**The API returns something unexpected,** or one of the 7 Stage 1 files looks wrong: don't fix it in the app. Message SAM with the screen, what you did, the error message shown, and the time.
+**The API returns something unexpected,** or a locked file looks wrong: don't fix it in the app. Message SAM with the screen, what you did, the message shown, and the time.
+
+---
+
+## Part E: demo-day phone setup
+
+- **Mirror the phone to the laptop** with scrcpy over USB (free and open source; no Wi-Fi needed), so the judges see the phone on the projector. Practise it once.
+- **Phone settings:** Do Not Disturb on, brightness up, screen timeout at 10 minutes, default font size, battery over 80%, notifications cleared.
+- **Network:** venue Wi-Fi, with a phone hotspot ready as backup. Check `/api/health` on the phone's browser right before you go on stage.
+- **Accounts:** one phone signed in as the persona, with a finished viva and a verified hackathon (for the report), and a second, fresh install ready for the live part (sign-up → repo → one spoken answer).
+- **Backup video:** record the full journey with the phone's screen recorder after Stage 7. It's also a required submission.
