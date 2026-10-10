@@ -154,15 +154,26 @@ def not_yours(login: str) -> ApiError:
                     "Your commits must use an email linked to your GitHub account.", 400)
 
 
+def commits_in_others_repo(full_name: str, login: str) -> list[str]:
+    """The student's commits in a repo they don't own. Refuses if there are none or GitHub can't tell us."""
+    try:
+        shas = github_ingest.commits_by(full_name, login)
+    except ApiError as e:
+        if e.code == "GITHUB_RATE_LIMIT":
+            raise
+        shas = []  # GitHub can time out on huge repos; we can't confirm the commits, so we refuse
+    if not shas:
+        raise not_yours(login)
+    return shas
+
+
 def _analyze(full_name: str, login: str, owned: bool) -> dict:
     started = time.monotonic()
     meta = github_ingest.get_repo(full_name)
     full_name = meta["full_name"]  # GitHub's own spelling
     if not owned:
-        # Check for the student's commits before downloading anything: refusing should be instant.
-        my_shas = github_ingest.commits_by(full_name, login)
-        if not my_shas:
-            raise not_yours(login)
+        # Check for the student's commits before downloading anything, so refusing is quick.
+        my_shas = commits_in_others_repo(full_name, login)
     with ThreadPoolExecutor(max_workers=3) as pool:
         history = pool.submit(github_ingest.build_history, full_name, login)
         languages = pool.submit(github_ingest.get_languages, full_name)

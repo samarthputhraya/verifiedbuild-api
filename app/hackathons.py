@@ -8,7 +8,7 @@ Only verified entries count in the match score.
 from app import db, github_ingest, report
 from app.errors import ApiError
 from app.models import HackathonCreate
-from app.viva import not_yours
+from app.viva import commits_in_others_repo
 
 
 def add(student_id: str, body: HackathonCreate) -> dict:
@@ -18,8 +18,8 @@ def add(student_id: str, body: HackathonCreate) -> dict:
     login = student["github_username"]
     meta = github_ingest.get_repo(body.repo_full_name.strip().strip("/"))  # exists and is public
     full_name = meta["full_name"]
-    if full_name.split("/")[0].lower() != login.lower() and not github_ingest.commits_by(full_name, login):
-        raise not_yours(login)
+    if full_name.split("/")[0].lower() != login.lower():
+        commits_in_others_repo(full_name, login)  # refuses unless the student has commits in it
     row = db.insert("hackathons", {
         "student_id": student_id, "event": body.event, "year": body.year, "result": body.result,
         "team_size": body.team_size, "repo_full_name": full_name,
