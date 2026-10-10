@@ -14,6 +14,7 @@ October 2026 (USD per million tokens). Check Google's rate card and pass --price
 
 import argparse
 import json
+import math
 import statistics
 from datetime import datetime
 
@@ -29,7 +30,8 @@ def _median(xs):
 
 
 def _p90(xs):
-    return sorted(xs)[int(0.9 * (len(xs) - 1))] if xs else None
+    """Nearest-rank 90th percentile: the value 90% of runs are at or below."""
+    return sorted(xs)[math.ceil(0.9 * len(xs)) - 1] if xs else None
 
 
 def main() -> None:
@@ -91,8 +93,8 @@ def main() -> None:
         print(f"Answer scoring time:         median {_median(answer_s):.1f}s, p90 {_p90(answer_s):.1f}s ({len(answer_s)} answers)")
     if labels:
         b, nb = by_label["built"], by_label["not_built"]
-        print(f"Labelled set: built {len(b)} repos, mean {statistics.mean(b) if b else 'n/a'}; "
-              f"not built {len(nb)} repos, mean {statistics.mean(nb) if nb else 'n/a'}")
+        print(f"Labelled set: built {len(b)} vivas, mean {round(statistics.mean(b)) if b else 'n/a'}; "
+              f"not built {len(nb)} vivas, mean {round(statistics.mean(nb)) if nb else 'n/a'}")
         if b and nb:
             print(f"Score gap (built - not built): {statistics.mean(b) - statistics.mean(nb):.0f} points")
 
