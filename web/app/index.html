@@ -4,29 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https://github.com https://avatars.githubusercontent.com; style-src 'self'; script-src 'self'; connect-src 'self'; font-src 'self'; media-src 'self' blob:; manifest-src 'self'; base-uri 'none'; form-action 'self'">
-  <meta name="theme-color" content="#eff2ee" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0b1016" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#13161b" media="(prefers-color-scheme: dark)">
   <meta name="description" content="Pick one of your GitHub repos, answer 5 questions about your own code, and get matched to internships on the skills you show.">
   <title>VerifiedBuild</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="manifest" href="/app/manifest.webmanifest">
-  <link rel="preload" href="/fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="/fonts/material-symbols-rounded.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="modulepreload" href="/vendor/preact-htm.js">
+  <link rel="modulepreload" href="/ui.js">
   <link rel="stylesheet" href="/styles.css">
-  <script src="/common.js" defer></script>
-  <script src="/app/app.js" defer></script>
+  <script type="module" src="/app/app.js"></script>
 </head>
 <body>
-  <header class="app-bar" id="appbar">
-    <a class="brand" href="#/home"><img class="brand-mark" src="/favicon.svg" alt="">VerifiedBuild</a>
-    <span class="spacer"></span>
-    <button class="icon-btn" id="account" type="button" aria-label="Account" hidden></button>
-  </header>
-  <main id="app" class="page">
-    <p class="loading">Loading…</p>
-  </main>
-  <nav class="nav-bar" id="nav" aria-label="Main" hidden></nav>
-  <noscript><main class="page"><p>VerifiedBuild needs JavaScript turned on.</p></main></noscript>
+  <div id="root"></div>
+  <noscript><main class="main"><p>VerifiedBuild needs JavaScript turned on.</p></main></noscript>
 </body>
 </html>
