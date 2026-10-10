@@ -227,7 +227,10 @@ def test_web_pages_are_served_and_api_errors_stay_json():
         r = c.get("/")
         assert r.status_code == 200 and "text/html" in r.headers["content-type"] and "recruiter dashboard" in r.text
         r = c.get("/recruiter/")
-        assert r.status_code == 200 and "/recruiter/app.js" in r.text
+        assert r.status_code == 200 and "/recruiter/app.js" in r.text and "/common.js" in r.text
+        r = c.get("/app/")
+        assert r.status_code == 200 and "/app/app.js" in r.text and "media-src 'self' blob:" in r.text
+        assert c.get("/common.js").status_code == 200 and c.get("/app/app.js").status_code == 200
         assert "Content-Security-Policy" in r.text
         assert c.get("/recruiter/app.js").status_code == 200
         assert c.get("/fonts/plex-sans-400.woff2").status_code == 200
