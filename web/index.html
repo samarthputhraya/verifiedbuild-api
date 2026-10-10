@@ -2,21 +2,42 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; font-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'self'">
+  <meta name="theme-color" content="#f9f5ff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b082f" media="(prefers-color-scheme: dark)">
+  <meta name="description" content="Students answer 5 questions about their own GitHub code. Internships are matched, and applicants ranked, on the skills they show.">
   <title>VerifiedBuild</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="/app/manifest.webmanifest">
+  <link rel="preload" href="/fonts/google-sans-flex.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/styles.css">
+  <script src="/common.js" defer></script>
+  <script src="/landing.js" defer></script>
 </head>
 <body>
+  <header class="app-bar" id="appbar">
+    <a class="brand" href="/"><img class="brand-mark" src="/favicon.svg" alt="">VerifiedBuild</a>
+    <span class="spacer"></span>
+    <a class="btn text" href="/recruiter/">For recruiters</a>
+  </header>
   <main class="landing">
-    <h1>Internships matched on the skills students show.</h1>
-    <p class="lede">A student picks one of their GitHub repos and answers 5 questions about their own code, by voice or text, in any language. Their answers become a skill profile with evidence. Recruiters see who applied, ranked by verified skill, with the student's words next to the code they were asked about.</p>
-    <div class="links">
-      <a class="button" href="/app/">Verify my skills</a>
-      <a class="button quiet" href="/recruiter/">Open the recruiter dashboard</a>
-    </div>
-    <p class="small faint">Students can also use the VerifiedBuild Android app. <a href="/docs">API documentation</a>. Built at Tri-City AI-Thon 2026.</p>
+    <section class="landing-hero">
+      <div class="fields">
+        <h1 class="display-l">Show what you can really build.</h1>
+        <p class="lede">Anyone can ship a project with AI now, so a repo alone doesn't show skill. Pick one of your GitHub repos and answer 5 questions about its code, out loud or typed, in any language. Internships are matched on what you show.</p>
+        <div class="actions">
+          <a class="btn lg" href="/app/">Verify my skills</a>
+          <a class="btn lg outlined" href="/recruiter/">Open the recruiter dashboard</a>
+        </div>
+      </div>
+      <div class="landing-art" id="art" aria-hidden="true"></div>
+    </section>
+    <section class="how" id="how" aria-label="How it works"></section>
+    <footer class="landing-foot">
+      <span>Built at Tri-City AI-Thon 2026 for the Promtal track.</span>
+      <a href="/docs">API documentation</a>
+    </footer>
   </main>
 </body>
 </html>

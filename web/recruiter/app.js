@@ -1,16 +1,18 @@
 "use strict";
 // VerifiedBuild recruiter dashboard. Plain JavaScript, no build step, served by the API itself.
-// Shared rendering lives in /common.js (the VB object).
+// Shared components live in /common.js (the VB object).
 
-const { h, enc, chip, api: callApi, githubUser, levelOf, ago, TAGS, TAG_NAME, RESULT_LABEL, pct } = VB;
+const { h, enc, chip, icon, shape, button, api: callApi, githubUser, levelOf, ago, TAGS, TAG_NAME, RESULT_LABEL, pct, repoName } = VB;
 const POLL_MS = 5000;
 const KEY = "vb_admin_key";
 const session = VB.store(window.sessionStorage);
+const wide = window.matchMedia("(min-width: 1200px)");
 
 const app = document.getElementById("app");
+const live = document.getElementById("live");
 const signoutButton = document.getElementById("signout");
-const announcer = h("div", { class: "sr-only", role: "status" });
-document.body.append(announcer);
+signoutButton.append(icon("logout"));
+VB.watchScroll(document.getElementById("appbar"));
 
 let viewToken = 0; // bumps on every navigation, so a slow fetch or poll never paints over a newer view
 let pollTimer = null;
@@ -23,25 +25,35 @@ function paint(token, ...nodes) {
   return true;
 }
 
-const loading = (text) => h("p", { class: "soft" }, text);
+const head = (title, sub, back, trailing) => h("div", { class: "page-head" },
+  back ? h("a", { class: "btn text back", href: back[0] }, icon("arrow_back"), back[1]) : null,
+  h("div", { class: "section-head" }, h("h1", { class: "headline-l" }, title), trailing || null),
+  sub ? h("p", { class: "body-l var" }, sub) : null);
+
+const section = (title, note, ...children) => h("section", { class: "section" },
+  h("div", { class: "section-head" }, h("h2", { class: "title-l" }, title)), note ? h("p", { class: "section-note" }, note) : null, children);
+
+function setLive(state) {
+  live.replaceChildren(state ? chip(state === "ok" ? "Updating live" : "Reconnecting", `live${state === "ok" ? "" : " stale"}`) : "");
+}
 
 function stopPolling() {
   if (pollTimer) clearInterval(pollTimer);
   pollTimer = null;
+  setLive(null);
 }
 
-function startPolling(token, refresh, statusEl) {
+function startPolling(token, refresh) {
   stopPolling();
+  setLive("ok");
   pollTimer = setInterval(async () => {
     if (token !== viewToken || document.hidden) return;
     try {
       await refresh();
-      statusEl.classList.remove("is-stale");
-      statusEl.textContent = "Updating live";
+      setLive("ok");
     } catch (e) {
       if (e.code === "BAD_ADMIN_KEY") return signOut(e.message);
-      statusEl.classList.add("is-stale");
-      statusEl.textContent = "Couldn't refresh. Trying again.";
+      setLive("stale");
     }
   }, POLL_MS);
 }
@@ -52,36 +64,36 @@ function showSignin(message) {
   ++viewToken;
   stopPolling();
   signoutButton.hidden = true;
-  const input = h("input", { type: "password", id: "passcode", autocomplete: "current-password", required: true });
-  const error = h("p", { class: "notice", hidden: !message }, message || "");
-  const button = h("button", { type: "submit" }, "Sign in");
+  const pass = VB.textField({ id: "passcode", label: "Passcode", type: "password", attrs: { autocomplete: "current-password" } });
+  if (message) pass.setError(message);
+  const submit = button("Sign in", { type: "submit", kind: "lg", iconAfter: "arrow_forward" });
   const form = h("form", {
-    class: "signin",
+    class: "signin", novalidate: true,
     onsubmit: async (ev) => {
       ev.preventDefault();
-      button.disabled = true;
-      error.hidden = true;
-      session.set(KEY, input.value.trim());
+      if (!pass.input.value.trim()) { pass.setError("Enter the passcode."); return; }
+      submit.disabled = true;
+      session.set(KEY, pass.input.value.trim());
       try {
         await api("/api/admin/verify", { admin: true });
         location.hash = "#/";
         render();
       } catch (e) {
         session.del(KEY);
-        error.textContent = e.message;
-        error.hidden = false;
-        button.disabled = false;
-        input.focus();
+        pass.setError(e.message);
+        submit.disabled = false;
+        pass.input.focus();
       }
     },
   },
-    h("h1", {}, "Recruiter sign-in"),
-    h("p", { class: "soft" }, "Enter the passcode from the VerifiedBuild team to see who applied to your internships."),
-    h("label", { for: "passcode" }, "Passcode", input),
-    error,
-    h("div", {}, button));
+    shape("cookie9", 56, "secondary", icon("lock")),
+    h("div", { class: "fields" },
+      h("h1", { class: "headline-m" }, "Recruiter sign-in"),
+      h("p", { class: "body-m var" }, "Enter the passcode from the VerifiedBuild team to see who applied to your internships, ranked by the skills they verified.")),
+    pass.wrap,
+    h("div", { class: "actions end" }, submit));
   app.replaceChildren(form);
-  input.focus();
+  pass.input.focus();
 }
 
 function signOut(message) {
@@ -92,39 +104,40 @@ function signOut(message) {
 
 function showError(e) {
   if (e.code === "BAD_ADMIN_KEY") return signOut(e.message);
-  app.replaceChildren(h("div", { class: "empty" },
-    h("p", { class: "notice" }, e.message),
-    h("div", {}, h("button", { onclick: () => render() }, "Try again"))));
+  app.replaceChildren(h("div", { class: "section" }, VB.banner(e.message, { action: button("Try again", { kind: "text", iconName: "refresh", onclick: () => render() }) })));
 }
 
 // ---------- Internships, each with its applicants ----------
 
-function listingRow(listing, shortlist) {
-  const weights = Object.entries(listing.required_skills).sort((a, b) => b[1] - a[1]);
-  const total = weights.reduce((s, [, w]) => s + w, 0) || 1;
+function weightBars(required) {
+  const weights = Object.entries(required).sort((a, b) => b[1] - a[1]);
+  const total = weights.reduce((sum, [, w]) => sum + w, 0) || 1;
+  return h("div", { class: "weights", "aria-label": "Skills this role needs" }, weights.map(([tag, w]) => {
+    const fill = h("span");
+    fill.style.width = pct(w / total);
+    return h("div", { class: "weight" }, h("span", {}, TAG_NAME[tag] || tag), h("span", { class: "track" }, fill), h("span", { class: "num" }, pct(w / total)));
+  }));
+}
+
+function listingCard(listing, shortlist) {
   const candidates = shortlist.candidates || [];
   const top = candidates[0];
-  return h("a", { class: "listing", href: `#/listing/${enc(listing.id)}` },
-    h("div", {},
-      h("div", { class: "venture" }, listing.venture),
-      h("div", { class: "listing-title" }, listing.title),
-      h("p", { class: "soft small" }, listing.description)),
-    h("div", { class: "weights", "aria-label": "Skills this role needs" },
-      weights.map(([tag, w]) => h("div", { class: "weight" },
-        h("span", {}, TAG_NAME[tag] || tag),
-        VB.bar(w / total),
-        h("span", { class: "faint" }, pct(w / total))))),
-    candidates.length
-      ? h("div", { class: "applied" },
-        h("div", { class: "applied-count" }, String(candidates.length)),
-        h("div", { class: "small soft" }, candidates.length === 1 ? "applicant" : "applicants"),
-        h("div", { class: "small" }, `Top match: ${top.name}, ${top.match}%`))
-      : h("div", { class: "applied none" }, "No applicants yet"));
+  return h("a", { class: "listing-card", href: `#/listing/${enc(listing.id)}` },
+    h("div", { class: "listing-top" },
+      shape("cookie6", 48, "secondary", h("span", { class: "title-m" }, listing.venture.slice(0, 1))),
+      h("div", {}, h("div", { class: "title-l" }, listing.title), h("div", { class: "body-m var" }, listing.venture))),
+    h("p", { class: "body-m var clamp-2" }, listing.description),
+    weightBars(listing.required_skills),
+    h("div", { class: "listing-foot" },
+      h("span", { class: `count-badge${candidates.length ? "" : " zero"}` }, String(candidates.length)),
+      h("span", { class: "body-m" }, candidates.length ? (candidates.length === 1 ? "applicant" : "applicants") : "No applicants yet"),
+      h("span", { class: "spacer" }),
+      top ? h("span", { class: "body-s var" }, `Top: ${top.name}, ${top.match}%`) : null,
+      icon("chevron_right")));
 }
 
 async function showListings(token) {
-  paint(token, loading("Loading internships…"));
-  const status = h("span", { class: "live" }, "Updating live");
+  paint(token, VB.loadingView("Loading internships…"));
   let lastJson = "";
   const draw = async () => {
     const { listings } = await api("/api/listings");
@@ -132,54 +145,38 @@ async function showListings(token) {
     const json = JSON.stringify(shortlists);
     if (json === lastJson) return;
     lastJson = json;
-    const applications = shortlists.reduce((n, s) => n + s.candidates.length, 0);
+    const applications = shortlists.reduce((n, sl) => n + sl.candidates.length, 0);
     paint(token,
-      h("div", { class: "page-head" },
-        h("div", { class: "grow" },
-          h("h1", {}, "Internships"),
-          h("p", { class: "soft" }, applications
-            ? `${applications} ${applications === 1 ? "application" : "applications"} so far. Students appear here when they apply and agree to share their report.`
-            : "No applications yet. Students appear here when they apply and agree to share their report.")),
-        status),
-      h("div", { class: "listings" }, listings.map((l, i) => listingRow(l, shortlists[i]))));
+      head("Internships", applications
+        ? `${VB.count(applications, "application")} so far. Students appear here when they apply and agree to share their report.`
+        : "No applications yet. Students appear here when they apply and agree to share their report."),
+      h("div", { class: "listing-grid" }, listings.map((l, i) => listingCard(l, shortlists[i]))));
   };
   await draw();
-  startPolling(token, draw, status);
+  startPolling(token, draw);
 }
 
 // ---------- Ranked applicants for one internship ----------
 
-function candidateRow(c, listingId, isNew) {
+function candidateItem(c, listingId, { isNew, selected, onSelect }) {
   const skills = TAGS.filter(([tag]) => c.skills[tag] !== undefined);
-  const evidence = c.top_evidence;
-  return h("li", { class: `candidate${isNew ? " is-new" : ""}` },
-    h("div", { class: "rank", "aria-label": `Rank ${c.rank}` }, String(c.rank)),
-    h("div", { class: "cand-main" },
-      h("div", { class: "cand-name" }, h("a", { href: `#/candidate/${enc(c.student_id)}?listing=${enc(listingId)}` }, c.name)),
-      h("div", { class: "row-gap soft small" },
-        h("span", {}, c.college),
-        h("a", { href: githubUser(c.github_username), target: "_blank", rel: "noopener noreferrer" }, `@${c.github_username}`),
-        c.repo_full_name ? h("span", {}, c.repo_full_name) : null,
-        h("span", {}, `Applied ${ago(c.applied_at)}`)),
-      h("div", { class: "mini-skills", "aria-label": "Verified skills" },
-        skills.map(([tag, name]) => chip(`${name} ${c.skills[tag]}`, levelOf(c.skills[tag])))),
-      (c.hackathons || []).length
-        ? h("div", { class: "row-gap small" }, c.hackathons.map((x) =>
-          h("span", {}, chip("Verified hackathon", "strong"), " ", `${RESULT_LABEL[x.result] || x.result}, ${x.event} ${x.year}, viva ${x.viva_score}`)))
-        : null,
-      evidence ? h("p", { class: "quote-line small" }, `“${evidence.answer_excerpt}” `, h("span", { class: "faint" }, `(${evidence.score}/10)`)) : null,
-      h("div", { class: "row-gap small soft" },
-        chip(`Spoken ${c.answer_modes.voice}`, "fact"),
-        chip(`Typed ${c.answer_modes.text}`, "fact"),
-        chip(`Pasted ${c.answer_modes.pasted}`, "fact"))),
-    h("div", { class: "match" },
-      h("div", { class: "match-num" }, `${c.match}%`),
-      h("div", { class: "match-label" }, "match"),
-      h("div", { class: "small soft" }, `Overall ${c.overall}`)));
+  const href = `#/candidate/${enc(c.student_id)}?listing=${enc(listingId)}`;
+  return h("a", {
+    class: `li cand${isNew ? " new" : ""}${selected ? " selected" : ""}`, href, "aria-current": selected ? "true" : null,
+    onclick: (ev) => { if (onSelect && wide.matches) { ev.preventDefault(); onSelect(c.student_id); } },
+  },
+    h("span", { class: "rank", "aria-label": `Rank ${c.rank}` }, String(c.rank)),
+    VB.avatar(c.github_username),
+    h("div", { class: "li-main" },
+      h("div", { class: "title-m" }, c.name),
+      h("div", { class: "li-meta" }, h("span", {}, c.college), h("span", {}, `Applied ${ago(c.applied_at)}`)),
+      h("div", { class: "mini-skills" }, skills.map(([tag, name]) => chip(`${name} ${c.skills[tag]}`, levelOf(c.skills[tag]))),
+        (c.hackathons || []).length ? chip(`${c.hackathons.length} verified hackathon${c.hackathons.length > 1 ? "s" : ""}`, "tertiary", "emoji_events") : null)),
+    VB.ring(c.match, { size: 52, stroke: 5, label: `${c.match}% match`, children: h("span", { class: "label-l" }, `${c.match}%`) }));
 }
 
-async function downloadCsv(listingId, button) {
-  button.disabled = true;
+async function downloadCsv(listingId, btn) {
+  btn.disabled = true;
   try {
     const res = await api(`/api/admin/shortlist/${enc(listingId)}/csv`, { admin: true, raw: true });
     const url = URL.createObjectURL(await res.blob());
@@ -188,107 +185,102 @@ async function downloadCsv(listingId, button) {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+    VB.snackbar("CSV downloaded.");
   } catch (e) {
     if (e.code === "BAD_ADMIN_KEY") return signOut(e.message);
-    alert(e.message);
+    VB.snackbar(e.message);
   } finally {
-    button.disabled = false;
+    btn.disabled = false;
   }
 }
 
-async function showShortlist(token, listingId) {
-  paint(token, loading("Loading applicants…"));
-  const status = h("span", { class: "live" }, "Updating live");
+async function showShortlist(token, listingId, selectedId) {
+  paint(token, VB.loadingView("Loading applicants…"));
   let known = null;
   let lastJson = "";
+  let selected = selectedId;
+  let sl = null;
+  const listEl = h("div", { class: "list split-list" });
+  const detail = h("div", { class: "split-detail" });
+  const select = async (id) => {
+    selected = id;
+    history.replaceState(null, "", `#/listing/${enc(listingId)}?c=${enc(id)}`);
+    drawList(new Set());
+    detail.replaceChildren(VB.loadingView("Loading report…"));
+    try {
+      const r = await api(`/api/report/${enc(id)}`);
+      if (token === viewToken && selected === id) detail.replaceChildren(...reportNodes(r, sl.listing));
+    } catch (e) { detail.replaceChildren(VB.banner(e.message)); }
+  };
+  const drawList = (fresh) => listEl.replaceChildren(...sl.candidates.map((c) => candidateItem(c, listingId, { isNew: fresh.has(c.student_id), selected: wide.matches && c.student_id === selected, onSelect: select })));
   const draw = async () => {
-    const sl = await api(`/api/admin/shortlist/${enc(listingId)}`, { admin: true });
+    sl = await api(`/api/admin/shortlist/${enc(listingId)}`, { admin: true });
     const json = JSON.stringify(sl);
     if (json === lastJson) return;
     lastJson = json;
     const ids = sl.candidates.map((c) => c.student_id);
     const fresh = new Set(known ? ids.filter((id) => !known.has(id)) : []);
     known = new Set(ids);
-    const csvButton = h("button", { class: "quiet", onclick: () => downloadCsv(listingId, csvButton) }, "Download CSV");
-    paint(token,
-      h("div", { class: "page-head" },
-        h("div", { class: "grow" },
-          h("a", { class: "crumb", href: "#/" }, "All internships"),
-          h("h1", {}, sl.listing.title),
-          h("p", { class: "soft" }, `${sl.listing.venture}. Ranked by match on verified skills and verified hackathons, then by overall score.`)),
-        h("div", { class: "row-gap" }, status, csvButton)),
-      sl.candidates.length
-        ? h("ol", { class: "ranked" }, sl.candidates.map((c) => candidateRow(c, listingId, fresh.has(c.student_id))))
-        : h("div", { class: "empty" },
-          h("h2", {}, "No applicants yet"),
-          h("p", { class: "soft" }, "Students appear here the moment they apply and agree to share their report. This page updates by itself.")));
     if (fresh.size) {
       const names = sl.candidates.filter((c) => fresh.has(c.student_id)).map((c) => c.name).join(", ");
-      announcer.textContent = `New applicant: ${names}`;
+      VB.snackbar(`New applicant: ${names}`, { actionText: wide.matches ? "View" : null, onAction: () => select([...fresh][0]) });
     }
+    const csv = button("Download CSV", { kind: "outlined", iconName: "download" });
+    csv.addEventListener("click", () => downloadCsv(listingId, csv));
+    if (!sl.candidates.length) {
+      return paint(token,
+        head(sl.listing.title, `${sl.listing.venture}. Ranked by match on verified skills and verified hackathons, then by overall score.`, ["#/", "All internships"]),
+        h("div", { class: "section" }, h("div", { class: "split-detail" }, h("div", { class: "empty-detail" },
+          shape("cookie9", 72, "secondary", icon("group", "lg")),
+          h("h2", { class: "title-l" }, "No applicants yet"),
+          h("p", { class: "body-m" }, "Students appear here the moment they apply and agree to share their report. This page updates by itself.")))));
+    }
+    drawList(fresh);
+    if (wide.matches && (!selected || !ids.includes(selected))) select(ids[0]);
+    paint(token,
+      head(sl.listing.title, `${sl.listing.venture}. ${VB.count(sl.candidates.length, "applicant")}, ranked by match on verified skills and verified hackathons, then by overall score.`, ["#/", "All internships"], csv),
+      h("div", { class: "split section" }, listEl, wide.matches ? detail : null));
   };
   await draw();
-  startPolling(token, draw, status);
+  startPolling(token, draw);
 }
 
-// ---------- One candidate's full report ----------
+// ---------- One candidate's report ----------
+
+function reportNodes(r, listing) {
+  const repos = [...new Set(r.evidence.map((e) => e.repo_full_name))];
+  const nodes = [
+    h("div", { class: "passport" },
+      h("div", { class: "passport-who" },
+        h("div", { class: "passport-id" }, VB.avatar(r.student.github_username, "lg"),
+          h("div", {}, h("h1", { class: "headline-m" }, r.student.name),
+            h("div", { class: "li-meta body-m" }, h("span", {}, r.student.college),
+              h("a", { href: githubUser(r.student.github_username), target: "_blank", rel: "noopener noreferrer" }, `@${r.student.github_username}`)))),
+        h("div", { class: "chips" }, r.status === "done" ? chip("Verified by viva", "primary", "verified") : null, repos.map((x) => chip(repoName(x), "fact", "code")))),
+      r.status === "done" ? VB.scoreBadge(r.overall, 120) : null),
+  ];
+  if (r.status !== "done") return nodes.concat(h("div", { class: "section" }, VB.banner("This student hasn't finished a viva yet, so there are no scores to show.", { kind: "info", iconName: "info" })));
+  const forThis = listing ? r.matches.find((m) => m.listing_id === listing.id) : null;
+  if (forThis) nodes.push(h("div", { class: "section" }, VB.matchCard(forThis, listing, { top: true })));
+  nodes.push(
+    section("Verified skills", "From their answers. 70 and up is strong, 40 to 69 partial.", VB.skillStamps(r.skills)),
+    section("Claimed and shown", "Only skills shown in the viva count toward matches.", VB.claimsList(r.claimed_vs_verified, "them")));
+  if (r.hackathons.length) nodes.push(section("Hackathons", "Verified when the student finishes a viva on its repo. On team repos the questions are about the files they changed.", VB.hackathonList(r.hackathons, "them")));
+  nodes.push(section("Answers", "Each question was about the code shown beside it.", h("div", { class: "evidence" }, r.evidence.map((e, i) => VB.evidenceSheet(e, i, "them")))));
+  if (r.build_history) nodes.push(section("How the repo was built", "Facts from GitHub. They don't change the score.", VB.buildHistory(r.build_history, "them")));
+  nodes.push(section("Matches across all internships", null, h("div", { class: "list" }, r.matches.map((m) => h("div", { class: "li" },
+    VB.ring(m.match, { size: 48, stroke: 4, label: `${m.match}% match`, children: h("span", { class: "label-m" }, `${m.match}%`) }),
+    h("div", { class: "li-main" }, h("div", { class: "title-m" }, `${m.title}, ${m.venture}`), h("div", { class: "body-s var" }, m.why)),
+    h("span", { class: "li-trail" }, m.applied ? chip("Applied", "strong", "check_circle") : null))))));
+  return nodes;
+}
 
 async function showCandidate(token, studentId, listingId) {
-  paint(token, loading("Loading report…"));
-  const r = await api(`/api/report/${enc(studentId)}`);
-  const repos = [...new Set(r.evidence.map((e) => e.repo_full_name))];
-  const back = listingId
-    ? h("a", { class: "crumb", href: `#/listing/${enc(listingId)}` }, "Back to applicants")
-    : h("a", { class: "crumb", href: "#/" }, "All internships");
-  const nodes = [
-    h("div", { class: "report-head" },
-      h("div", {},
-        back,
-        h("h1", {}, r.student.name),
-        h("div", { class: "row-gap soft" },
-          h("span", {}, r.student.college),
-          h("a", { href: githubUser(r.student.github_username), target: "_blank", rel: "noopener noreferrer" }, `@${r.student.github_username}`)),
-        repos.length
-          ? h("p", { class: "small soft" }, repos.length > 1 ? `Based on vivas on ${repos.length} repos: ${repos.join(", ")}` : `Based on a viva on ${repos[0]}`)
-          : null),
-      r.status === "done"
-        ? h("div", { class: "overall" }, h("div", { class: "overall-num" }, String(r.overall)), h("div", { class: "small soft" }, "overall, out of 100"))
-        : null),
-  ];
-  if (r.status !== "done") {
-    nodes.push(h("p", { class: "notice" }, "This student hasn't finished a viva yet, so there are no scores to show."));
-    return paint(token, ...nodes);
-  }
-  nodes.push(
-    h("section", { class: "block" },
-      h("h2", {}, "Claimed and shown"),
-      h("p", { class: "block-note" }, "Only skills shown in the viva count toward matches."),
-      VB.claimedTable(r.claimed_vs_verified, "them")),
-    h("section", { class: "block" },
-      h("h2", {}, "Verified skills"),
-      VB.skillBars(r.skills)));
-  if (r.hackathons.length) {
-    nodes.push(h("section", { class: "block" },
-      h("h2", {}, "Hackathons"),
-      h("p", { class: "block-note" }, "A hackathon is verified when the student finishes a viva on its repo. On team repos the questions are about the files they changed."),
-      h("div", {}, VB.hackathonRows(r.hackathons, "them"))));
-  }
-  nodes.push(h("section", { class: "block" },
-    h("h2", {}, "Answers"),
-    h("p", { class: "block-note" }, "Each question was about the code shown. Their words sit beside it."),
-    h("div", { class: "evidence" }, r.evidence.map((e, i) => VB.evidenceSheet(e, i, "them")))));
-  if (r.build_history) {
-    nodes.push(h("section", { class: "block" },
-      h("h2", {}, "How the repo was built"),
-      VB.buildHistoryFacts(r.build_history, "them"),
-      h("p", { class: "block-note" }, "Facts from GitHub. They don't change the score.")));
-  }
-  nodes.push(h("section", { class: "block" },
-    h("h2", {}, "Matches across all internships"),
-    h("div", {}, r.matches.map((m) => h("div", { class: "hack" },
-      h("div", {}, h("div", {}, h("strong", {}, `${m.title}, ${m.venture}`)), h("p", { class: "small soft" }, m.why)),
-      h("div", { class: "row-gap" }, m.applied ? chip("Applied", "strong") : null, h("strong", {}, `${m.match}%`)))))));
-  paint(token, ...nodes);
+  paint(token, VB.loadingView("Loading report…"));
+  const [r, listings] = await Promise.all([api(`/api/report/${enc(studentId)}`), api("/api/listings").then((x) => x.listings).catch(() => [])]);
+  const listing = listings.find((l) => l.id === listingId) || null;
+  const back = h("a", { class: "btn text back", href: listingId ? `#/listing/${enc(listingId)}` : "#/" }, icon("arrow_back"), listingId ? "Back to applicants" : "All internships");
+  paint(token, h("div", { class: "page-head" }, back), ...reportNodes(r, listing));
   window.scrollTo(0, 0);
 }
 
@@ -307,7 +299,7 @@ async function render() {
   signoutButton.hidden = false;
   const { parts, query } = parseHash();
   try {
-    if (parts[0] === "listing" && parts[1]) await showShortlist(token, decodeURIComponent(parts[1]));
+    if (parts[0] === "listing" && parts[1]) await showShortlist(token, decodeURIComponent(parts[1]), query.get("c"));
     else if (parts[0] === "candidate" && parts[1]) await showCandidate(token, decodeURIComponent(parts[1]), query.get("listing"));
     else await showListings(token);
   } catch (e) {
@@ -317,4 +309,5 @@ async function render() {
 
 signoutButton.addEventListener("click", () => signOut());
 window.addEventListener("hashchange", render);
+wide.addEventListener("change", render);
 render();
