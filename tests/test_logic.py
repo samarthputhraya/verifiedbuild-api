@@ -9,17 +9,33 @@ PROMTAL = {"id": "l-promtal-backend", "title": "HR-Tech Backend Intern", "ventur
            "required_skills": {"backend": 0.6, "data": 0.2, "security": 0.2}, "tags": ["hrtech", "saas"]}
 
 
+ASHA_HACKATHON = {"event": "HackX", "year": 2026, "result": "finalist", "verified": True, "viva_score": 72}
+
+
 def test_match_reproduces_the_contract_example():
-    # skill_fit = (.6*.81 + .2*.55) / 1 = .596; overlap = |{saas}| / |{saas,data,hrtech}| = 1/3
-    # match = round(100 * (.7*.596 + .3*.333)) = round(51.72) = 52
-    s = matching.score({"backend": 81, "frontend": 60, "data": 55}, ["saas", "data"], PROMTAL)
-    assert s == {"match": 52, "why": "Verified backend 81 covers 60% of this role; shared interests: saas."}
+    # skill_fit = (.6*.81 + .2*.55) / 1 = .596; interests = |{saas}| / |{saas,data,hrtech}| = 1/3
+    # hackathon = viva 72 x finalist 0.8 = .576
+    # match = round(100 * (.6*.596 + .25*.3333 + .15*.576)) = round(52.73) = 53
+    h = matching.hackathon_signal([ASHA_HACKATHON])
+    s = matching.score({"backend": 81, "frontend": 60, "data": 55}, ["saas", "data"], PROMTAL, h)
+    assert s == {"match": 53, "why": "Verified backend 81 covers 60% of this role; shared interests: saas; "
+                                     "verified hackathon: Finalist at HackX 2026 (viva 72)."}
 
 
-def test_claimed_skills_never_count():
-    s = matching.score({}, [], PROMTAL)
-    assert s["match"] == 0
-    assert s["why"].startswith("No verified skills for this role yet")
+def test_claimed_hackathons_and_skills_count_for_nothing():
+    unverified = {**ASHA_HACKATHON, "verified": False, "viva_score": None}
+    assert matching.hackathon_signal([unverified]) == (0.0, None)
+    s = matching.score({"backend": 81, "frontend": 60, "data": 55}, ["saas", "data"], PROMTAL, matching.hackathon_signal([unverified]))
+    assert s["match"] == 44 and "hackathon" not in s["why"]  # round(100 * (.6*.596 + .25*.3333)) = 44
+    assert matching.score({}, [], PROMTAL)["match"] == 0
+    assert matching.score({}, [], PROMTAL)["why"].startswith("No verified skills for this role yet")
+
+
+def test_best_verified_hackathon_wins():
+    winner = {**ASHA_HACKATHON, "result": "winner", "viva_score": 60}      # 0.60
+    finalist = {**ASHA_HACKATHON, "result": "finalist", "viva_score": 90}  # 0.72
+    value, entry = matching.hackathon_signal([winner, finalist])
+    assert round(value, 2) == 0.72 and entry is finalist
 
 
 def test_levels():

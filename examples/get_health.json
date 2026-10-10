@@ -1,1 +1,5 @@
-{"ok": true, "demo_mode": false, "version": "v1"}
+{
+  "ok": true,
+  "demo_mode": false,
+  "version": "v1.1"
+}

@@ -47,5 +47,9 @@ def fakes(monkeypatch):
     monkeypatch.setattr(github_ingest, "get_repo", lambda n: {"full_name": n, "default_branch": "main", "description": None})
     monkeypatch.setattr(github_ingest, "download_files", lambda n, ref: dict(FILES, **{"README.md": "# Expense split"}))
     monkeypatch.setattr(github_ingest, "get_languages", lambda n: {"TypeScript": 81.2, "CSS": 18.8})
+    # The student has commits in their own repos and in one teammate's hackathon repo; nowhere else.
+    monkeypatch.setattr(github_ingest, "commits_by", lambda n, login: (
+        ["sha1", "sha2"] if n.split("/")[0].lower() == login.lower() else ["sha3"] if n == "teammate/hack-app" else []))
+    monkeypatch.setattr(github_ingest, "files_changed", lambda n, shas: {"server/settle.ts": 120, "api/auth.py": 30})
     monkeypatch.setattr(github_ingest, "build_history", lambda n, login: {
         "commits": 46, "active_days": 19, "span_days": 33, "authors": 1, "your_commit_share": 1.0, "median_lines_per_commit": 38})

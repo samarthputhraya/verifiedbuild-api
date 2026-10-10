@@ -1,10 +1,32 @@
 {
   "session_id": "b2d7...",
-  "repo": {"full_name": "asharao/expense-split", "languages": {"TypeScript": 81.2, "CSS": 18.8}, "files_read": 12},
+  "repo": {
+    "full_name": "asharao/expense-split",
+    "languages": {
+      "TypeScript": 81.2,
+      "CSS": 18.8
+    },
+    "files_read": 12
+  },
   "repo_skills": [
-    {"tag": "backend", "evidence": "Express routes and settlement logic in server/routes.ts"},
-    {"tag": "frontend", "evidence": "React state and forms in src/App.tsx"}
+    {
+      "tag": "backend",
+      "evidence": "Express routes and settlement logic in server/routes.ts"
+    },
+    {
+      "tag": "frontend",
+      "evidence": "React state and forms in src/App.tsx"
+    }
   ],
+  "contribution": {
+    "team_repo": true,
+    "your_commits": 28,
+    "focus_files": [
+      "server/settle.ts",
+      "server/routes.ts",
+      "src/App.tsx"
+    ]
+  },
   "questions": [
     {
       "id": "q1",

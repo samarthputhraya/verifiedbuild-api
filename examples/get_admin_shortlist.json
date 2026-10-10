@@ -1,12 +1,42 @@
 {
-  "listing": {"id": "l-promtal-backend", "title": "HR-Tech Backend Intern", "venture": "Promtal"},
+  "listing": {
+    "id": "l-promtal-backend",
+    "title": "HR-Tech Backend Intern",
+    "venture": "Promtal"
+  },
   "candidates": [
     {
-      "rank": 1, "student_id": "6f1c...", "name": "Asha Rao", "college": "KITS Warangal", "github_username": "asharao",
+      "rank": 1,
+      "student_id": "6f1c...",
+      "name": "Asha Rao",
+      "college": "KITS Warangal",
+      "github_username": "asharao",
       "repo_full_name": "asharao/expense-split",
-      "match": 52, "overall": 72, "skills": {"backend": 81, "frontend": 60, "data": 55},
-      "answer_modes": {"voice": 4, "text": 1, "pasted": 0},
-      "top_evidence": {"question": "Why do you sort debtors...", "answer_excerpt": "Sorting lets me greedily...", "score": 8},
+      "match": 53,
+      "overall": 72,
+      "skills": {
+        "backend": 81,
+        "frontend": 60,
+        "data": 55
+      },
+      "answer_modes": {
+        "voice": 4,
+        "text": 1,
+        "pasted": 0
+      },
+      "top_evidence": {
+        "question": "Why do you sort debtors...",
+        "answer_excerpt": "Sorting lets me greedily...",
+        "score": 8
+      },
+      "hackathons": [
+        {
+          "event": "HackX",
+          "year": 2026,
+          "result": "finalist",
+          "viva_score": 72
+        }
+      ],
       "applied_at": "2026-10-10T13:05:00Z"
     }
   ]
