@@ -96,7 +96,8 @@ def from_pdf(resume_base64: str, mime: str | None) -> list[dict]:
     try:
         skills, _ = gemini.generate_json(
             [types.Part.from_bytes(data=pdf, mime_type="application/pdf"), "List the skills this resume claims."],
-            SCHEMA, system=SYSTEM, validate=validate, thinking="LOW",
+            SCHEMA, system=SYSTEM, validate=validate,
+            thinking="LOW", hedge_after_s=gemini.HEDGE_RESUME_S,
         )
     except ApiError:
         raise _unreadable(AI_DOWN)
