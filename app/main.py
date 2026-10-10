@@ -191,7 +191,8 @@ def shortlist_csv(listing_id: str):
 app.include_router(admin)
 
 # The recruiter dashboard and the landing page (web/). Mounted last, so every /api route wins.
-mimetypes.add_type("font/woff2", ".woff2")  # the slim Python image doesn't know this one
+mimetypes.add_type("font/woff2", ".woff2")  # the slim Python image doesn't know these two
+mimetypes.add_type("application/manifest+json", ".webmanifest")
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 

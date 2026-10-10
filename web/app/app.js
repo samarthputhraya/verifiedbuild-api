@@ -1,18 +1,21 @@
 "use strict";
 // VerifiedBuild student app (web). Same API and the same flow as the Android app:
 // sign up → pick a repo → "what we found" → 5 questions (voice or text) → report → apply.
-// Plain JavaScript, no build step. Shared rendering lives in /common.js (the VB object).
+// Plain JavaScript, no build step. Shared components live in /common.js (the VB object).
 
-const { h, enc, chip, api, levelOf, repoName, TAG_NAME, RESULT_LABEL, INTERESTS, INTEREST_LABEL, SKILL_CHIPS } = VB;
+const { h, enc, chip, api, icon, shape, button, levelOf, repoName, TAG_NAME, TAG_ICON, TAG_SHAPE, RESULT_LABEL, INTERESTS, SKILL_CHIPS } = VB;
 const local = VB.store(window.localStorage);
 const tab = VB.store(window.sessionStorage);
 const app = document.getElementById("app");
-const signoutButton = document.getElementById("signout");
+const nav = document.getElementById("nav");
+const accountButton = document.getElementById("account");
+VB.watchScroll(document.getElementById("appbar"));
 
 const RETRYABLE = new Set(["AI_FAILED", "NETWORK", "DB_UNAVAILABLE", "DB_ERROR", "INTERNAL", "HTTP_500", "HTTP_502", "HTTP_503", "HTTP_504"]);
 const MAX_RECORDING_S = 120;
 const USERNAME_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
 const REPO_RE = /^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/;
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 let viewToken = 0;
 let ticker = null; // the viva timer
@@ -25,7 +28,24 @@ const me = {
   forget() { ["vb_student_id", "vb_student_name", "vb_github"].forEach((k) => local.del(k)); tab.del("vb_last_analysis"); },
 };
 
-// ---------- Small helpers ----------
+// ---------- Frame ----------
+
+const NAV = [["home", "Home", "home"], ["repos", "Verify", "code"], ["internships", "Internships", "work"], ["report", "Report", "verified"]];
+
+function frame(page) {
+  // page: which nav item is current, or null for focus screens (sign-up, analyzing, viva) with no navigation
+  const showNav = page !== null && page !== "viva" && !!me.id();
+  document.body.classList.toggle("has-nav", showNav);
+  nav.hidden = !showNav;
+  if (showNav) {
+    nav.replaceChildren(...NAV.map(([id, label, iconName]) => h("a", { class: "nav-item", href: `#/${id}`, "aria-current": id === page ? "page" : null },
+      h("span", { class: "pill" }, icon(iconName)), h("span", {}, label))));
+  }
+  accountButton.hidden = !me.id();
+  if (me.id() && !accountButton.firstChild) accountButton.append(VB.avatar(me.github()));
+  app.className = page === "viva" ? "page focus" : "page";
+  document.body.classList.toggle("focus-mode", page === "viva");
+}
 
 function go(hash, replace = false) {
   if (replace) location.replace(hash); else location.hash = hash;
@@ -38,29 +58,22 @@ function paint(token, ...nodes) {
   return true;
 }
 
-const loading = (text) => h("p", { class: "soft" }, text);
-const notice = (text) => h("p", { class: "notice" }, text);
+const head = (title, sub, back) => h("div", { class: "page-head" },
+  back ? h("a", { class: "btn text back", href: back[0] }, icon("arrow_back"), back[1]) : null,
+  h("h1", { class: "headline-l" }, title),
+  sub ? h("p", { class: "body-l var" }, sub) : null);
+
+const section = (title, ...children) => h("section", { class: "section" }, h("div", { class: "section-head" }, h("h2", { class: "title-l" }, title)), children);
 
 function normaliseUsername(raw) {
-  let s = (raw || "").trim().replace(/^https?:\/\//i, "").replace(/^github\.com\//i, "").replace(/^@/, "");
+  const s = (raw || "").trim().replace(/^https?:\/\//i, "").replace(/^(www\.)?github\.com\//i, "").replace(/^@/, "");
   return s.split("/")[0];
 }
 
 function normaliseRepo(raw) {
-  const s = (raw || "").trim().replace(/^https?:\/\//i, "").replace(/^github\.com\//i, "");
+  const s = (raw || "").trim().replace(/^https?:\/\//i, "").replace(/^(www\.)?github\.com\//i, "");
   const [owner, name] = s.split("/");
   return owner && name ? `${owner}/${name.replace(/\.git$/, "")}` : s;
-}
-
-function toggleGroup(options, selected, label) {
-  return h("div", { class: "toggles", role: "group", "aria-label": label }, options.map(([value, text]) => {
-    const b = h("button", { type: "button", class: "toggle", "aria-pressed": String(selected.has(value)) }, text);
-    b.addEventListener("click", () => {
-      if (selected.has(value)) selected.delete(value); else selected.add(value);
-      b.setAttribute("aria-pressed", String(selected.has(value)));
-    });
-    return b;
-  }));
 }
 
 function readFileAsBase64(file) {
@@ -72,159 +85,248 @@ function readFileAsBase64(file) {
   });
 }
 
-function confirmDialog({ title, text, confirm, extra, gate }) {
-  return new Promise((resolve) => {
-    const yes = h("button", { value: "yes", disabled: !!gate }, confirm);
-    if (gate) gate.addEventListener("change", () => { yes.disabled = !gate.checked; }); // e.g. a consent box that must be ticked
-    const d = h("dialog", {},
-      h("form", { method: "dialog", class: "form-grid" },
-        h("h2", {}, title),
-        text ? h("p", { class: "soft" }, text) : null,
-        extra || null,
-        h("div", { class: "actions" },
-          yes,
-          h("button", { value: "no", class: "quiet" }, "Cancel"))));
-    d.addEventListener("close", () => { d.remove(); resolve(d.returnValue === "yes"); });
-    document.body.append(d);
-    d.showModal();
-  });
-}
-
-// ---------- Sign up ----------
+// ---------- Sign up: four short steps ----------
 
 function showSignup(token, message) {
-  signoutButton.hidden = true;
-  const interests = new Set();
-  const skills = new Set();
-  let resume = null; // { base64, name }
-  const name = h("input", { type: "text", id: "name", maxlength: "100", autocomplete: "name", required: true });
-  const email = h("input", { type: "text", id: "email", maxlength: "200", autocomplete: "email", inputmode: "email", required: true });
-  const college = h("input", { type: "text", id: "college", maxlength: "150", required: true });
-  const github = h("input", { type: "text", id: "github", maxlength: "100", autocapitalize: "off", spellcheck: "false", required: true });
-  const fileInput = h("input", { type: "file", id: "resume", accept: "application/pdf" });
-  const fileNote = h("p", { class: "small soft" }, "No resume attached.");
-  const error = h("p", { class: "notice", hidden: !message }, message || "");
-  const submit = h("button", { type: "submit" }, "Create my profile");
-  const withoutResume = h("button", { type: "button", class: "quiet", hidden: true }, "Continue without resume");
+  frame(null);
+  const state = { step: 0, found: null, interests: new Set(), skills: new Set(), resume: null };
+  const gh = VB.textField({ id: "github", label: "GitHub username", prefix: "github.com/", attrs: { maxlength: "100", autocapitalize: "off", autocomplete: "username", spellcheck: "false", inputmode: "url" }, support: "We only read your public repos." });
+  const name = VB.textField({ id: "name", label: "Full name", attrs: { maxlength: "100", autocomplete: "name" } });
+  const email = VB.textField({ id: "email", label: "Email", type: "email", attrs: { maxlength: "200", autocomplete: "email", inputmode: "email" } });
+  const college = VB.textField({ id: "college", label: "College", attrs: { maxlength: "150", autocomplete: "organization" } });
+  const card = h("div", { class: "step-card" });
+  const topError = h("div", {});
+  let checkTimer = null;
+  let checkSeq = 0;
 
-  fileInput.addEventListener("change", async () => {
-    const f = fileInput.files && fileInput.files[0];
-    resume = null;
-    if (!f) { fileNote.textContent = "No resume attached."; return; }
-    if (f.type && f.type !== "application/pdf") { fileNote.textContent = "Please pick a PDF file."; fileInput.value = ""; return; }
-    if (f.size > 5 * 1024 * 1024) { fileNote.textContent = "That PDF is over 5 MB. Please pick a smaller file."; fileInput.value = ""; return; }
-    resume = { base64: await readFileAsBase64(f), name: f.name };
-    fileNote.textContent = `Attached: ${f.name}`;
+  async function checkGithub() {
+    const u = normaliseUsername(gh.input.value);
+    const seq = ++checkSeq;
+    state.found = null;
+    gh.box.querySelector(".trail")?.remove();
+    if (!u) return gh.setSupport("We only read your public repos.");
+    if (!USERNAME_RE.test(u)) return gh.setError("A GitHub username has letters, numbers and dashes only.");
+    gh.setSupport("Checking GitHub…");
+    try {
+      const r = await api(`/api/github/${enc(u)}/repos`);
+      if (seq !== checkSeq) return;
+      state.found = { username: u, repos: r.repos.length };
+      gh.box.append(h("span", { class: "trail" }, VB.avatar(u)));
+      gh.setOk(r.repos.length ? `Found @${u}, with ${VB.count(r.repos.length, "public repo")}.` : `Found @${u}. Push a project to GitHub so we can verify it.`);
+    } catch (e) {
+      if (seq !== checkSeq) return;
+      if (e.code === "GITHUB_USER_NOT_FOUND") gh.setError("We couldn't find that GitHub username.");
+      else { state.found = { username: u, repos: null }; gh.setSupport("We'll check this username when you sign up."); }
+    }
+  }
+  gh.input.addEventListener("input", () => {
+    // A pasted profile link becomes just the username
+    if (/github\.com\/|^https?:|^@/i.test(gh.input.value)) gh.input.value = normaliseUsername(gh.input.value);
+    clearTimeout(checkTimer);
+    checkTimer = setTimeout(checkGithub, 450);
   });
 
+  // Resume: a drop zone, or skill chips
+  const fileInput = h("input", { type: "file", id: "resume", accept: "application/pdf", class: "sr-only" });
+  const resumeError = h("div", { class: "field-support", role: "alert" });
+  const resumeArea = h("div", {});
+  const resumeField = h("div", { class: "field" }, fileInput, resumeArea, resumeError);
+  function drawResume() {
+    resumeArea.replaceChildren(state.resume
+      ? h("div", { class: "file-pill" }, icon("description"), h("span", { class: "name" }, state.resume.name),
+        h("button", { class: "icon-btn", type: "button", "aria-label": "Remove resume", onclick: () => { state.resume = null; fileInput.value = ""; setResumeError(""); drawResume(); } }, icon("close")))
+      : h("label", { class: "drop", for: "resume" }, icon("upload_file", "lg"), h("span", { class: "title-s" }, "Upload your resume"), h("span", { class: "body-s var" }, "PDF, under 5 MB. We read the skills it lists.")));
+  }
+  function setResumeError(text) {
+    resumeError.replaceChildren(...(text ? [icon("error"), h("span", {}, text)] : []));
+    resumeField.classList.toggle("invalid", !!text);
+  }
+  fileInput.addEventListener("change", async () => {
+    const f = fileInput.files && fileInput.files[0];
+    state.resume = null;
+    setResumeError("");
+    if (f && f.type && f.type !== "application/pdf") { setResumeError("That file isn't a PDF. Upload your resume as a PDF, or pick your skills below."); fileInput.value = ""; }
+    else if (f && f.size > 5 * 1024 * 1024) { setResumeError("That PDF is over 5 MB. Upload a smaller copy, or pick your skills below."); fileInput.value = ""; }
+    else if (f) state.resume = { base64: await readFileAsBase64(f), name: f.name };
+    drawResume();
+  });
+  drawResume();
+
+  const steps = [
+    {
+      title: "What's your GitHub?",
+      sub: "Your questions come from code in your own public repos.",
+      body: () => gh.wrap,
+      next() {
+        const u = normaliseUsername(gh.input.value);
+        if (!USERNAME_RE.test(u)) { gh.setError("Enter your GitHub username, like asharao."); gh.input.focus(); return false; }
+        if (gh.wrap.classList.contains("invalid")) { gh.input.focus(); return false; }
+        return true;
+      },
+      focus: () => gh.input,
+    },
+    {
+      title: "About you",
+      sub: "Recruiters see this only on reports you choose to share.",
+      body: () => h("div", { class: "fields" }, name.wrap, email.wrap, college.wrap),
+      next() {
+        let ok = true;
+        if (!name.input.value.trim()) { name.setError("Enter your name."); ok = false; } else name.setSupport("");
+        if (!EMAIL_RE.test(email.input.value.trim())) { email.setError("Enter an email like name@college.edu."); ok = false; } else email.setSupport("");
+        if (!college.input.value.trim()) { college.setError("Enter your college."); ok = false; } else college.setSupport("");
+        if (!ok) card.querySelector("[aria-invalid='true']")?.focus();
+        return ok;
+      },
+      focus: () => name.input,
+    },
+    {
+      title: "What are you into?",
+      sub: "Pick at least one. Internships with the same tags rank higher.",
+      body: () => VB.filterChips(INTERESTS, state.interests, "Interests", () => interestError.replaceChildren()),
+      next() {
+        if (state.interests.size) return true;
+        interestError.replaceChildren(icon("error"), h("span", {}, "Pick at least one interest."));
+        return false;
+      },
+    },
+    {
+      title: "Your skills",
+      sub: "These are what you claim. The viva checks them, and only what you show counts.",
+      body: () => h("div", { class: "fields" },
+        resumeField,
+        h("div", { class: "or" }, "Or pick your skills"),
+        VB.filterChips(SKILL_CHIPS.map((s) => [s, s]), state.skills, "Skills", () => skillError.replaceChildren())),
+      next: () => true,
+    },
+  ];
+  const interestError = h("div", { class: "field-support", role: "alert" });
+  const skillError = h("div", { class: "field-support", role: "alert" });
+
+  const submit = button("Create my profile", { kind: "lg", iconName: "check" });
   async function send(useResume) {
-    error.hidden = true;
-    withoutResume.hidden = true;
-    const gh = normaliseUsername(github.value);
-    const problems = [];
-    if (!name.value.trim()) problems.push("Enter your name.");
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.value.trim())) problems.push("Enter an email like name@college.edu.");
-    if (!college.value.trim()) problems.push("Enter your college.");
-    if (!USERNAME_RE.test(gh)) problems.push("That doesn't look like a GitHub username.");
-    if (!interests.size) problems.push("Pick at least one interest.");
-    if (!(useResume && resume) && !skills.size) problems.push("Upload a resume or pick at least one skill.");
-    if (problems.length) { error.textContent = problems.join(" "); error.hidden = false; return; }
+    topError.replaceChildren();
+    skillError.replaceChildren();
+    setResumeError("");
+    if (!(useResume && state.resume) && !state.skills.size) {
+      skillError.replaceChildren(icon("error"), h("span", {}, "Upload your resume or pick at least one skill."));
+      return;
+    }
     submit.disabled = true;
-    submit.textContent = useResume && resume ? "Checking your GitHub and reading your resume…" : "Checking your GitHub…";
+    submit.replaceChildren(icon("schedule"), useResume && state.resume ? "Reading your resume…" : "Creating your profile…");
     try {
       const r = await api("/api/students", {
         method: "POST",
         body: {
-          name: name.value.trim(), email: email.value.trim(), college: college.value.trim(), github_username: gh,
-          interests: [...interests], skills: skills.size ? [...skills] : null,
-          resume_base64: useResume && resume ? resume.base64 : null, resume_mime: useResume && resume ? "application/pdf" : null,
+          name: name.input.value.trim(), email: email.input.value.trim(), college: college.input.value.trim(),
+          github_username: normaliseUsername(gh.input.value), interests: [...state.interests], skills: state.skills.size ? [...state.skills] : null,
+          resume_base64: useResume && state.resume ? state.resume.base64 : null, resume_mime: useResume && state.resume ? "application/pdf" : null,
         },
       });
-      me.save(r.student_id, name.value.trim(), r.github_username);
-      go("#/home", true);
+      me.save(r.student_id, name.input.value.trim(), r.github_username);
+      if (location.hash === "#/home") render(); else go("#/home", true); // a hash change renders by itself
     } catch (e) {
-      error.textContent = e.message;
-      error.hidden = false;
-      if (e.code === "RESUME_UNREADABLE" && skills.size) withoutResume.hidden = false;
+      if (e.code === "GITHUB_USER_NOT_FOUND") { state.step = 0; draw(); gh.setError(e.message); return; }
+      if (e.code === "RESUME_UNREADABLE") {
+        setResumeError(e.message);
+        if (state.skills.size) {
+          topError.replaceChildren(VB.banner(e.message, { action: button("Continue with my picked skills", { kind: "text", onclick: () => { state.resume = null; drawResume(); send(false); } }) }));
+        }
+        return;
+      }
+      topError.replaceChildren(VB.banner(e.message));
     } finally {
       submit.disabled = false;
-      submit.textContent = "Create my profile";
+      submit.replaceChildren(icon("check"), "Create my profile");
     }
   }
-  withoutResume.addEventListener("click", () => send(false));
+  submit.addEventListener("click", () => send(true));
 
+  function draw() {
+    const st = steps[state.step];
+    const last = state.step === steps.length - 1;
+    const nextBtn = last ? submit : button("Next", { kind: "lg", iconAfter: "arrow_forward", onclick: () => { if (st.next()) { state.step += 1; draw(); } } });
+    card.replaceChildren(
+      h("div", { class: "step-top" },
+        VB.stepsBar(steps.length, state.step, state.step),
+        h("span", { class: "label-m step-count" }, `Step ${state.step + 1} of ${steps.length}`),
+        h("h2", { class: "headline-m" }, st.title),
+        h("p", { class: "body-m var" }, st.sub)),
+      h("form", { class: "fields", novalidate: true, onsubmit: (ev) => { ev.preventDefault(); if (last) send(true); else if (st.next()) { state.step += 1; draw(); } } },
+        st.body(),
+        state.step === 2 ? interestError : null,
+        last ? skillError : null,
+        topError,
+        h("div", { class: "actions" }, state.step > 0 ? button("Back", { kind: "text", iconName: "arrow_back", onclick: () => { state.step -= 1; draw(); } }) : null, h("span", { class: "spacer" }), nextBtn)));
+    const f = st.focus && st.focus();
+    if (f) setTimeout(() => f.focus(), 0);
+  }
+  draw();
+
+  const fact = (iconName, shapeKind, text) => h("div", { class: "fact" }, shape(shapeKind, 48, "secondary", icon(iconName)), h("span", { class: "body-l" }, text));
   paint(token,
-    h("div", { class: "page-head" }, h("div", { class: "grow" },
-      h("h1", {}, "Show what you can really build."),
-      h("p", { class: "soft" }, "Pick one of your GitHub repos and answer 5 questions about your own code, by speaking or typing, in any language. Internships are matched on the skills you show."))),
-    h("form", { class: "form-grid", onsubmit: (ev) => { ev.preventDefault(); send(true); } },
-      h("label", { for: "name" }, "Full name", name),
-      h("label", { for: "email" }, "Email", email),
-      h("label", { for: "college" }, "College", college),
-      h("label", { for: "github" }, "GitHub username", h("span", { class: "field-hint" }, "We only read your public repos."), github),
-      h("fieldset", {}, h("legend", {}, "Interests"), toggleGroup(INTERESTS, interests, "Interests")),
-      h("fieldset", {},
-        h("legend", {}, "Your skills"),
-        h("p", { class: "small soft" }, "With a resume, we read your skills from it. Without one, we use the chips you pick."),
-        h("label", { for: "resume" }, "Resume (PDF, under 5 MB)", fileInput),
-        fileNote,
-        toggleGroup(SKILL_CHIPS.map((s) => [s, s]), skills, "Skills")),
-      error,
-      h("div", { class: "actions" }, submit, withoutResume)));
-  name.focus();
+    message ? VB.banner(message, { kind: "info", iconName: "info" }) : null,
+    h("div", { class: "signup" },
+      h("div", { class: "signup-hero" },
+        h("h1", { class: "display-m" }, "Show what you can really build."),
+        h("p", { class: "body-l var" }, "Pick one of your GitHub repos and answer 5 questions about your own code. Internships are matched on the skills you show, not the ones you list."),
+        h("div", { class: "facts" },
+          fact("mic", "cookie9", "Speak or type, in any language"),
+          fact("timer", "clover", "5 questions, about 8 minutes"),
+          fact("lock", "cookie6", "Private until you apply"))),
+      card));
 }
 
 // ---------- Home ----------
 
-function hackathonForm(token, repos) {
-  const event = h("input", { type: "text", id: "h-event", maxlength: "120", placeholder: "e.g. Smart City Hackathon", required: true });
-  const year = h("input", { type: "number", id: "h-year", min: "2000", max: "2100", value: String(new Date().getFullYear()) });
-  const result = h("select", { id: "h-result" }, ["winner", "finalist", "participant"].map((r) => h("option", { value: r }, RESULT_LABEL[r])));
-  const team = h("input", { type: "number", id: "h-team", min: "1", max: "20", value: "1" });
-  const repoSelect = h("select", { id: "h-repo" },
-    h("option", { value: "" }, repos.length ? "Pick one of your repos" : "No public repos found"),
-    repos.map((r) => h("option", { value: r.full_name }, r.full_name)));
-  const repoText = h("input", { type: "text", id: "h-repo-other", placeholder: "owner/repo", autocapitalize: "off", spellcheck: "false" });
-  const error = h("p", { class: "notice", hidden: true });
-  const add = h("button", { type: "submit" }, "Add hackathon");
-  return h("details", { class: "add-box" },
-    h("summary", {}, "Add a hackathon"),
-    h("form", {
-      class: "form-grid",
-      onsubmit: async (ev) => {
-        ev.preventDefault();
-        error.hidden = true;
-        const repo = normaliseRepo(repoText.value) || repoSelect.value;
-        if (!event.value.trim()) { error.textContent = "Enter the hackathon's name."; error.hidden = false; return; }
-        if (!REPO_RE.test(repo)) { error.textContent = "Pick one of your repos, or type a team repo as owner/repo."; error.hidden = false; return; }
-        add.disabled = true;
-        try {
-          await api(`/api/students/${enc(me.id())}/hackathons`, {
-            method: "POST",
-            body: { event: event.value.trim(), year: Number(year.value), result: result.value, team_size: Number(team.value), repo_full_name: repo },
-          });
-          if (token === viewToken) render();
-        } catch (e) {
-          error.textContent = e.message;
-          error.hidden = false;
-        } finally {
-          add.disabled = false;
-        }
+function hackathonDialog(repos) {
+  return new Promise((resolve) => {
+    const event = VB.textField({ id: "h-event", label: "Hackathon name", attrs: { maxlength: "120", placeholder: "e.g. Smart India Hackathon" } });
+    const year = VB.textField({ id: "h-year", label: "Year", type: "number", value: String(new Date().getFullYear()), attrs: { min: "2000", max: "2100", inputmode: "numeric" } });
+    const result = VB.selectField({ id: "h-result", label: "Result", options: ["winner", "finalist", "participant"].map((r) => [r, RESULT_LABEL[r]]), value: "participant" });
+    const team = VB.textField({ id: "h-team", label: "Team size", type: "number", value: "1", attrs: { min: "1", max: "20", inputmode: "numeric" } });
+    const repo = VB.selectField({ id: "h-repo", label: "Project repo", options: [["", repos.length ? "Pick one of your repos" : "No public repos found"], ...repos.map((r) => [r.full_name, r.full_name])], value: "" });
+    const other = VB.textField({ id: "h-other", label: "Or a team repo (owner/repo)", support: "You need commits in it. Your viva will ask about the files you changed.", attrs: { autocapitalize: "off", spellcheck: "false" } });
+    const error = h("div", {});
+    const save = h("button", { class: "btn", type: "submit" }, "Add hackathon");
+    const d = h("dialog", { "aria-labelledby": "h-title" },
+      h("form", {
+        novalidate: true,
+        onsubmit: async (ev) => {
+          ev.preventDefault();
+          error.replaceChildren();
+          const full = normaliseRepo(other.input.value) || repo.select.value;
+          if (!event.input.value.trim()) { event.setError("Enter the hackathon's name."); return; }
+          if (!REPO_RE.test(full)) { other.setError("Pick one of your repos, or type a team repo as owner/repo."); return; }
+          save.disabled = true;
+          try {
+            await api(`/api/students/${enc(me.id())}/hackathons`, {
+              method: "POST",
+              body: { event: event.input.value.trim(), year: Number(year.input.value), result: result.select.value, team_size: Number(team.input.value), repo_full_name: full },
+            });
+            d.close("saved");
+          } catch (e) {
+            error.replaceChildren(VB.banner(e.message));
+          } finally {
+            save.disabled = false;
+          }
+        },
       },
-    },
-      h("label", { for: "h-event" }, "Hackathon", event),
-      h("div", { class: "row-gap" },
-        h("label", { for: "h-year" }, "Year", year),
-        h("label", { for: "h-result" }, "Result", result),
-        h("label", { for: "h-team" }, "Team size", team)),
-      h("label", { for: "h-repo" }, "Project repo", repoSelect),
-      h("label", { for: "h-repo-other" }, "Or a teammate's or organisation's repo", h("span", { class: "field-hint" }, "You need commits in it. On team repos, your viva asks about the files you changed."), repoText),
-      error,
-      h("div", {}, add)));
+        h("span", { class: "dialog-icon" }, icon("emoji_events")),
+        h("h2", { id: "h-title" }, "Add a hackathon"),
+        h("p", {}, "It counts toward your matches once you finish a viva on its repo."),
+        h("div", { class: "fields" }, event.wrap, h("div", { class: "actions" }, h("div", { class: "spacer" }, year.wrap), h("div", { class: "spacer" }, team.wrap)), result.wrap, repo.wrap, other.wrap),
+        error,
+        h("div", { class: "actions" }, h("button", { class: "btn text", type: "button", onclick: () => d.close("cancel") }, "Cancel"), save)));
+    d.addEventListener("close", () => { d.remove(); resolve(d.returnValue === "saved"); });
+    document.body.append(d);
+    d.showModal();
+    event.input.focus();
+  });
 }
 
 async function showHome(token) {
-  paint(token, loading("Loading your profile…"));
+  frame("home");
+  paint(token, VB.loadingView("Loading your profile…"));
   let report;
   try {
     report = await api(`/api/report/${enc(me.id())}`);
@@ -236,107 +338,130 @@ async function showHome(token) {
     api(`/api/github/${enc(me.github())}/repos`).then((r) => r.repos).catch(() => []),
     api("/api/listings").then((r) => r.listings).catch(() => []),
   ]);
-  const first = me.name().split(" ")[0] || report.student.name;
+  const byId = Object.fromEntries(listings.map((l) => [l.id, l]));
+  const first = (me.name() || report.student.name).split(" ")[0];
   const inProgress = report.viva_in_progress;
-  const cards = [];
-  if (report.status === "done") {
-    cards.push(h("section", { class: "panel" },
-      h("h2", {}, "Your verified profile"),
-      h("div", { class: "row-gap" }, h("span", { class: "overall-num" }, String(report.overall)), h("span", { class: "soft" }, "out of 100, from your answers")),
-      h("div", { class: "actions" },
-        h("a", { class: "button", href: "#/report" }, "View report"),
-        h("a", { class: "button quiet", href: "#/repos" }, "Verify another repo"))));
-  }
-  if (inProgress) {
-    cards.push(h("section", { class: "panel" },
-      h("h2", {}, "Finish your viva"),
-      h("p", { class: "soft" }, `${repoName(inProgress.repo_full_name)}, ${inProgress.answered} of ${inProgress.total} answered`),
-      h("div", {}, h("button", { onclick: () => { tab.set("vb_session_id", inProgress.session_id); go("#/viva"); } }, "Continue"))));
-  }
-  if (report.status !== "done" && !inProgress) {
-    cards.push(h("section", { class: "panel" },
-      h("h2", {}, "Verify your skills"),
-      h("p", { class: "soft" }, "Pick one of your GitHub repos. We'll read the code and ask you 5 questions about it. It takes about 8 minutes."),
-      h("div", {}, h("a", { class: "button", href: "#/repos" }, "Pick a repo"))));
-  }
-  const hackRows = VB.hackathonRows(report.hackathons, "you", (x) => h("span", { class: "row-gap" },
-    x.verified ? null : h("button", { class: "quiet", onclick: () => go(`#/analyzing?repo=${enc(x.repo_full_name)}`) }, "Verify now"),
-    h("button", {
-      class: "quiet",
-      onclick: async () => {
-        if (!await confirmDialog({ title: `Remove ${x.event} ${x.year}?`, text: "This takes it off your profile.", confirm: "Remove" })) return;
-        try { await api(`/api/students/${enc(me.id())}/hackathons/${enc(x.hackathon_id)}`, { method: "DELETE" }); render(); } catch (e) { alert(e.message); }
-      },
-    }, "Remove")));
-  const matches = report.status === "done"
-    ? h("div", {}, report.matches.slice(0, 3).map((m) => h("div", { class: "hack" },
-      h("div", {}, h("strong", {}, `${m.title}, ${m.venture}`), h("p", { class: "small soft" }, m.why)),
-      h("strong", {}, `${m.match}%`))), h("p", {}, h("a", { href: "#/report" }, "See all and apply")))
-    : h("div", {}, listings.map((l) => h("div", { class: "hack" }, h("div", {}, h("strong", {}, l.title), h("div", { class: "small soft" }, l.venture)))),
-      h("p", { class: "small soft" }, "Finish a viva to see how well you match each one."));
+  const done = report.status === "done";
+
+  const hero = done
+    ? h("div", { class: "card hero" },
+      h("div", { class: "hero-row" },
+        h("div", { class: "fields" },
+          h("h2", { class: "headline-s" }, "Your verified profile"),
+          h("div", { class: "chips" }, Object.entries(report.skills).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([tag, score]) => chip(`${TAG_NAME[tag]} ${score}`, levelOf(score), TAG_ICON[tag])))),
+        VB.scoreBadge(report.overall, 96)),
+      h("div", { class: "actions" }, button("View report", { href: "#/report", iconName: "verified" }), button("Verify another repo", { href: "#/repos", kind: "tonal" })))
+    : h("div", { class: "card hero" },
+      h("h2", { class: "headline-s" }, "Verify your skills"),
+      h("ol", { class: "steps-list" },
+        [["Pick one of your GitHub repos"], ["Answer 5 questions about its code, out loud or typed"], ["Get matched to internships on what you showed"]]
+          .map(([t], i) => h("li", {}, h("span", { class: "steps-num" }, String(i + 1)), h("span", { class: "body-l" }, t)))),
+      h("div", { class: "actions" }, button("Pick a repo", { href: "#/repos", kind: "lg", iconAfter: "arrow_forward" })));
+
+  const continueCard = inProgress ? h("div", { class: "card tertiary" },
+    h("div", { class: "hero-row" },
+      h("div", { class: "fields" },
+        h("h2", { class: "title-l" }, "Finish your viva"),
+        h("p", { class: "body-m" }, `${repoName(inProgress.repo_full_name)}: ${inProgress.answered} of ${inProgress.total} answered. Your answers so far are saved.`)),
+      VB.ring((inProgress.answered / inProgress.total) * 100, { size: 56, label: `${inProgress.answered} of ${inProgress.total} answered`, children: h("span", { class: "label-l" }, `${inProgress.answered}/${inProgress.total}`) })),
+    h("div", { class: "actions" }, button("Continue", { iconAfter: "arrow_forward", onclick: () => { tab.set("vb_session_id", inProgress.session_id); go("#/viva"); } }))) : null;
+
+  const addHack = button("Add a hackathon", { kind: "tonal", iconName: "add", onclick: async () => { if (await hackathonDialog(repos)) { VB.snackbar("Hackathon added. Verify it with a viva on its repo."); render(); } } });
+  const hacks = report.hackathons.length
+    ? VB.hackathonList(report.hackathons, "you", (x) => [
+      x.verified ? null : button("Verify now", { kind: "text", onclick: () => go(`#/analyzing?repo=${enc(x.repo_full_name)}`) }),
+      h("button", {
+        class: "icon-btn", type: "button", "aria-label": `Remove ${x.event} ${x.year}`,
+        onclick: async () => {
+          if (!await VB.confirm({ title: `Remove ${x.event} ${x.year}?`, text: "This takes it off your profile and out of your matches.", confirmText: "Remove", iconName: "delete", danger: true })) return;
+          try { await api(`/api/students/${enc(me.id())}/hackathons/${enc(x.hackathon_id)}`, { method: "DELETE" }); VB.snackbar("Hackathon removed."); render(); } catch (e) { VB.snackbar(e.message); }
+        },
+      }, icon("delete"))])
+    : h("p", { class: "body-m var" }, "Add the hackathons you've done. Each one counts toward your matches once you verify it with a viva on its repo.");
+
+  const jobs = done
+    ? h("div", { class: "matches" }, report.matches.slice(0, 2).map((m, i) => VB.matchCard(m, byId[m.listing_id], { top: i === 0 })),
+      h("div", {}, button("See all internships", { href: "#/internships", kind: "text", iconAfter: "arrow_forward" })))
+    : [h("p", { class: "section-note" }, "Finish a viva to see how well you match each one."),
+      h("div", { class: "list" }, listings.map((l) => h("div", { class: "li" },
+        shape("cookie6", 40, "secondary", h("span", { class: "label-l" }, l.venture.slice(0, 1))),
+        h("div", { class: "li-main" }, h("div", { class: "title-m" }, l.title), h("div", { class: "li-meta" }, l.venture)),
+        h("span", {}))))];
+
   paint(token,
-    h("div", { class: "page-head" }, h("div", { class: "grow" },
-      h("h1", {}, `Hi, ${first}`),
-      h("div", { class: "row-gap soft" }, h("span", {}, `@${report.student.github_username}`), h("span", {}, report.student.college)))),
-    h("div", { class: "form-grid" }, cards),
-    h("section", { class: "block" },
-      h("h2", {}, "Your hackathons"),
-      report.hackathons.length
-        ? h("div", {}, hackRows)
-        : h("p", { class: "soft" }, "Add the hackathons you've done. Each one counts toward your matches once you verify it with a viva on its repo."),
-      hackathonForm(token, repos)),
-    h("section", { class: "block" }, h("h2", {}, "Internships"), matches));
+    h("div", { class: "hello" }, VB.avatar(report.student.github_username, "lg"),
+      h("div", {}, h("h1", { class: "headline-m" }, `Hi, ${first}`), h("div", { class: "li-meta body-m" }, h("span", {}, `@${report.student.github_username}`), h("span", {}, report.student.college)))),
+    h("div", { class: "fields" }, continueCard, hero),
+    h("section", { class: "section" }, h("div", { class: "section-head" }, h("h2", { class: "title-l" }, "Your hackathons"), addHack), hacks),
+    section("Internships", jobs));
 }
 
 // ---------- Pick a repo ----------
 
 async function showRepos(token) {
-  paint(token, loading("Loading your repos…"));
+  frame("repos");
+  paint(token, VB.loadingView("Loading your repos…"));
   const { repos } = await api(`/api/github/${enc(me.github())}/repos`);
   const pick = async (full) => {
-    if (await confirmDialog({
+    if (await VB.confirm({
       title: `Verify ${repoName(full)}?`,
       text: "We'll read the code and ask you 5 questions about it. Answer by speaking or typing, in any language. Each question has 90 seconds.",
-      confirm: "Start",
+      confirmText: "Start", iconName: "verified",
     })) go(`#/analyzing?repo=${enc(full)}`);
   };
-  const team = h("input", { type: "text", id: "team-repo", placeholder: "owner/repo", autocapitalize: "off", spellcheck: "false" });
-  const teamError = h("p", { class: "notice", hidden: true });
+  const search = VB.textField({ id: "repo-search", label: "Search your repos", attrs: { autocapitalize: "off", spellcheck: "false" }, trail: icon("search") });
+  const list = h("div", { class: "list" });
+  const LANG_TINTS = ["primary", "tertiary", "strong", "partial", "secondary"];
+  const langs = [...new Set(repos.map((r) => r.language || "Code"))];
+  const drawList = () => {
+    const q = search.input.value.trim().toLowerCase();
+    const shown = repos.filter((r) => !q || r.full_name.toLowerCase().includes(q) || (r.description || "").toLowerCase().includes(q));
+    list.replaceChildren(...(shown.length ? shown.map((r) => h("button", { class: "li", type: "button", onclick: () => pick(r.full_name) },
+      shape("cookie9", 48, LANG_TINTS[langs.indexOf(r.language || "Code") % LANG_TINTS.length], icon("code")),
+      h("div", { class: "li-main" },
+        h("div", { class: "title-m" }, repoName(r.full_name)),
+        h("div", { class: "body-m var clamp-2" }, r.description || "No description"),
+        h("div", { class: "li-meta" }, h("span", {}, r.language || "Code"), h("span", {}, `${r.stars} ★`), h("span", {}, `Updated ${(r.pushed_at || "").slice(0, 10)}`))),
+      h("span", { class: "li-trail" }, icon("chevron_right"))))
+      : [h("div", { class: "li" }, icon("search"), h("div", { class: "li-main" }, h("div", { class: "body-m" }, q ? `No repos match "${q}".` : `No public repos found on @${me.github()}. Push a project to GitHub, then reload this page.`)), h("span", {}))]));
+  };
+  search.input.addEventListener("input", drawList);
+  drawList();
+
+  const team = VB.textField({ id: "team-repo", label: "Team repo (owner/repo)", support: "A teammate's or organisation's repo you have commits in. Your questions will be about the files you changed.", attrs: { autocapitalize: "off", spellcheck: "false" } });
   paint(token,
-    h("div", { class: "page-head" }, h("div", { class: "grow" },
-      h("a", { class: "crumb", href: "#/home" }, "Back"),
-      h("h1", {}, "Pick a repo"),
-      h("p", { class: "soft" }, "Pick a project you built, so you can answer questions about its code."))),
-    repos.length
-      ? h("ul", { class: "repo-list" }, repos.map((r) => h("li", { class: "repo-item" },
-        h("button", { onclick: () => pick(r.full_name) },
-          h("span", { class: "repo-name" }, repoName(r.full_name)),
-          h("span", { class: "small soft" }, r.description || "No description"),
-          h("span", { class: "small faint" }, `${r.language || "Code"}, ★ ${r.stars}, updated ${(r.pushed_at || "").slice(0, 10)}`)))))
-      : h("p", { class: "soft" }, `No public repos found on @${me.github()}. Push a project to GitHub, then reload this page.`),
-    h("section", { class: "block" },
-      h("h2", {}, "Verify a team repo instead"),
-      h("form", {
-        class: "form-grid",
-        onsubmit: (ev) => {
-          ev.preventDefault();
-          const repo = normaliseRepo(team.value);
-          if (!REPO_RE.test(repo)) { teamError.textContent = "Type it as owner/repo, like your-team/hackathon-app."; teamError.hidden = false; return; }
-          go(`#/analyzing?repo=${enc(repo)}`);
-        },
-      },
-        h("label", { for: "team-repo" }, "Repo", h("span", { class: "field-hint" }, "A teammate's or organisation's repo you have commits in. Your questions will be about the files you changed."), team),
-        teamError,
-        h("div", {}, h("button", { type: "submit" }, "Start")))));
+    head("Pick a repo", "Pick a project you built, so you can answer questions about its code."),
+    repos.length > 6 ? search.wrap : null,
+    list,
+    h("section", { class: "section" },
+      h("div", { class: "card outlined" },
+        h("div", { class: "section-head" }, shape("cookie6", 40, "tertiary", icon("group")), h("h2", { class: "title-l" }, "Verify a team repo instead")),
+        h("form", {
+          class: "fields", novalidate: true,
+          onsubmit: (ev) => {
+            ev.preventDefault();
+            const repo = normaliseRepo(team.input.value);
+            if (!REPO_RE.test(repo)) { team.setError("Type it as owner/repo, like your-team/hackathon-app."); return; }
+            go(`#/analyzing?repo=${enc(repo)}`);
+          },
+        }, team.wrap, h("div", { class: "actions end" }, button("Start", { type: "submit", iconAfter: "arrow_forward" }))))));
 }
 
 // ---------- Analyzing and "What we found" ----------
 
 async function showAnalyzing(token, repo) {
-  paint(token, h("div", { class: "form-grid" },
-    h("h1", {}, `Reading ${repoName(repo)}`),
-    h("p", { class: "soft" }, "We're reading the code and writing 5 questions about it. This usually takes 15–30 seconds."),
-    h("div", { class: "progress", role: "progressbar", "aria-label": "Working" }, h("span", { class: "indeterminate" }))));
+  frame(null);
+  const step = (iconName, text) => h("li", {}, shape("cookie9", 40, "secondary", icon(iconName, "sm")), h("span", { class: "body-l" }, text));
+  paint(token, h("div", { class: "center-stage" },
+    h("h1", { class: "headline-l" }, `Reading ${repoName(repo)}`),
+    h("p", { class: "body-l var" }, "This usually takes 15 to 30 seconds. Keep this page open."),
+    VB.wavy(`Reading ${repoName(repo)}`),
+    h("div", { class: "card what-happens" },
+      h("h2", { class: "title-m" }, "What happens now"),
+      h("ul", {},
+        step("download", "We download the code from GitHub"),
+        step("description", "We skip libraries, build output and generated files, and keep the files that matter"),
+        step("forum", "We write 5 questions about real lines in those files")))));
   try {
     const a = await api("/api/analyze", { method: "POST", body: { student_id: me.id(), repo_full_name: repo } });
     if (token !== viewToken) return;
@@ -346,58 +471,52 @@ async function showAnalyzing(token, repo) {
     go("#/found", true);
   } catch (e) {
     if (token !== viewToken) return;
-    paint(token, h("div", { class: "form-grid" },
-      h("h1", {}, `We couldn't start the viva on ${repoName(repo)}`),
-      notice(e.message),
-      h("div", { class: "actions" },
-        h("button", { onclick: () => render() }, "Try again"),
-        h("a", { class: "button quiet", href: "#/repos" }, "Pick another repo"))));
+    paint(token, h("div", { class: "center-stage" },
+      h("h1", { class: "headline-l" }, `We couldn't start the viva on ${repoName(repo)}`),
+      VB.banner(e.message),
+      h("div", { class: "actions" }, button("Try again", { iconName: "refresh", onclick: () => render() }), button("Pick another repo", { kind: "text", href: "#/repos" }))));
   }
 }
 
-const LANG_COLOURS = ["var(--action)", "var(--strong)", "var(--partial)", "var(--weak)", "var(--ink-faint)"];
-
 function showFound(token) {
+  frame(null);
   const a = JSON.parse(tab.get("vb_last_analysis") || "null");
   if (!a) return go("#/home", true);
   const langs = Object.entries(a.repo.languages).sort((x, y) => y[1] - x[1]);
   const top = langs.slice(0, 4);
-  const other = langs.slice(4).reduce((s, [, v]) => s + v, 0);
+  const other = langs.slice(4).reduce((sum, [, v]) => sum + v, 0);
   if (other > 0) top.push(["Other", Math.round(other * 10) / 10]);
-  const stack = h("div", { class: "stack-bar", role: "img", "aria-label": top.map(([n, v]) => `${n} ${v}%`).join(", ") },
-    top.map(([, v], i) => { const s = h("span"); s.style.width = `${v}%`; s.style.background = LANG_COLOURS[i]; return s; }));
+  const bar = h("div", { class: "lang-bar", role: "img", "aria-label": top.map(([n, v]) => `${n} ${v}%`).join(", ") },
+    top.map(([, v], i) => { const sp = h("span", { class: `l${i}` }); sp.style.flexGrow = String(v); return sp; }));
   paint(token,
-    h("div", { class: "page-head" }, h("div", { class: "grow" },
-      h("h1", {}, `We read ${repoName(a.repo.full_name)}`),
-      h("p", { class: "soft" }, `${a.repo.files_read} files read.`))),
-    h("div", { class: "form-grid" },
-      stack,
-      h("div", { class: "lang-legend" }, top.map(([n, v], i) => {
-        const sw = h("span", { class: "swatch" }); sw.style.background = LANG_COLOURS[i];
-        return h("span", {}, sw, `${n} ${v}%`);
-      })),
-      a.contribution.team_repo
-        ? h("section", { class: "panel" },
-          h("h2", {}, "Team repo"),
-          h("p", {}, `You made ${a.contribution.your_commits} commits here. Your questions are about the files you changed:`),
-          h("ul", { class: "points" }, a.contribution.focus_files.slice(0, 5).map((f) => h("li", { class: "mono" }, f))))
-        : null,
-      h("section", { class: "block" },
-        h("h2", {}, "What your code shows"),
-        h("div", {}, a.repo_skills.map((s) => h("div", { class: "hack" }, h("div", {}, chip(TAG_NAME[s.tag] || s.tag, "strong")), h("p", { class: "small" }, s.evidence))))),
-      h("p", { class: "soft" }, "Your 5 questions point at specific lines of this code. Each has 90 seconds. Speak or type, in any language."),
-      h("div", {}, h("button", { onclick: () => go("#/viva", true) }, "Start question 1"))));
+    head(`We read ${repoName(a.repo.full_name)}`, `${VB.count(a.repo.files_read, "file")} read. Here's what your code shows.`),
+    h("div", { class: "card" }, bar, h("div", { class: "lang-legend" }, top.map(([n, v], i) => h("span", {}, h("span", { class: `dot l${i}` }), `${n} ${v}%`)))),
+    a.contribution.team_repo
+      ? h("div", { class: "card tertiary" },
+        h("div", { class: "section-head" }, icon("group"), h("h2", { class: "title-m" }, "Team repo")),
+        h("p", { class: "body-m" }, `You made ${VB.count(a.contribution.your_commits, "commit")} here. Your questions are about the files you changed:`),
+        h("ul", { class: "points" }, a.contribution.focus_files.slice(0, 5).map((f) => h("li", {}, icon("description", "sm"), h("span", { class: "mono" }, f)))))
+      : null,
+    section("What your code shows",
+      h("div", { class: "list" }, a.repo_skills.map((sk) => h("div", { class: "li skill-found" },
+        shape(TAG_SHAPE[sk.tag] || "cookie9", 48, "primary", icon(TAG_ICON[sk.tag] || "code")),
+        h("div", { class: "li-main" }, h("div", { class: "title-m" }, TAG_NAME[sk.tag] || sk.tag), h("div", { class: "body-m var" }, sk.evidence)))))),
+    h("div", { class: "section" },
+      h("div", { class: "card filled" },
+        h("div", { class: "chips" }, chip("5 questions", "fact", "forum"), chip("90 seconds each", "fact", "timer"), chip("Speak or type", "fact", "mic"), chip("Any language", "fact", "translate")),
+        h("p", { class: "body-m var" }, "Each question points at specific lines of this code. There are no trick questions, and no score shows until the end.")),
+      h("div", { class: "actions end" }, button("Start question 1", { kind: "lg", iconAfter: "arrow_forward", onclick: () => go("#/viva", true) }))));
 }
 
 // ---------- The viva ----------
 
 const viva = {
-  s: null, // { sessionId, questions, current, followUp, answered, lastTranscript, loading, error, failed, done, timeLimit }
+  s: null, // { sessionId, questions, current, followUp, answered, loading, error, failed, done, timeLimit }
   input: { tab: "voice", text: "", pasted: false, shownAt: Date.now(), shownKey: null, rec: null },
 
   start(a) {
     this.s = { sessionId: a.session_id, questions: a.questions, current: a.questions[0] ? a.questions[0].id : null, followUp: null,
-      answered: [], lastTranscript: null, loading: false, error: null, failed: null, done: false, timeLimit: a.time_limit_s || 90 };
+      answered: [], loading: false, error: null, failed: null, done: false, timeLimit: a.time_limit_s || 90 };
     this.resetInput();
   },
 
@@ -408,7 +527,7 @@ const viva = {
   async resume(sessionId) {
     const v = await api(`/api/viva/${enc(sessionId)}`);
     this.s = { sessionId: v.session_id, questions: v.questions, current: v.status === "done" ? null : v.current_question_id,
-      followUp: v.pending_follow_up ? v.pending_follow_up.follow_up : null, answered: v.answered, lastTranscript: null,
+      followUp: v.pending_follow_up ? v.pending_follow_up.follow_up : null, answered: v.answered,
       loading: false, error: null, failed: null, done: v.status === "done", timeLimit: 90 };
     this.resetInput();
   },
@@ -418,7 +537,8 @@ const viva = {
     s.loading = true; s.error = null; s.failed = null;
     try {
       const r = await api(`/api/viva/${enc(s.sessionId)}/answer`, { method: "POST", body });
-      s.lastTranscript = body.mode === "voice" ? r.transcript : null; // typed answers need no echo
+      if (body.mode === "voice" && r.transcript) VB.snackbar(`Saved. We heard: “${r.transcript}”`, { timeout: 9000 });
+      else VB.snackbar(r.follow_up ? "Saved. You get one more chance on this question." : "Answer saved.", { timeout: 3000 });
       if (r.follow_up) {
         s.followUp = r.follow_up;
       } else {
@@ -429,7 +549,7 @@ const viva = {
       }
       this.resetInput();
     } catch (e) {
-      if (e.code === "ALREADY_ANSWERED") { await this.resume(s.sessionId); this.s.lastTranscript = null; return; }
+      if (e.code === "ALREADY_ANSWERED") { await this.resume(s.sessionId); return; }
       s.error = e;
       s.failed = body;
     } finally {
@@ -445,7 +565,7 @@ const viva = {
 };
 
 const recorder = {
-  media: null, stream: null, chunks: [], startedAt: 0, mime: "", stopTimer: null,
+  media: null, stream: null, chunks: [], startedAt: 0, mime: "", stopTimer: null, audio: null, analyser: null, frame: 0,
   get active() { return !!this.media; },
   async start() {
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -457,6 +577,40 @@ const recorder = {
     this.media.start();
     this.startedAt = Date.now();
     this.stopTimer = setTimeout(() => { if (this.active) stopAndKeep(); }, MAX_RECORDING_S * 1000);
+    this.listen();
+  },
+  // The waveform under the mic shows the student's real voice level
+  listen() {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      this.audio = new Ctx();
+      const src = this.audio.createMediaStreamSource(this.stream);
+      this.analyser = this.audio.createAnalyser();
+      this.analyser.fftSize = 512;
+      src.connect(this.analyser);
+      const data = new Uint8Array(this.analyser.fftSize);
+      const levels = new Array(28).fill(0); // the last 28 loudness samples, newest on the right
+      let last = 0;
+      const draw = (now) => {
+        if (!this.analyser) return;
+        if (now - last > 70) {
+          last = now;
+          this.analyser.getByteTimeDomainData(data);
+          let peak = 0;
+          for (const v of data) peak = Math.max(peak, Math.abs(v - 128));
+          levels.shift();
+          levels.push(Math.min(1, (peak / 128) * 1.6));
+          document.querySelectorAll("#wave span").forEach((bar, i) => { bar.style.height = `${Math.max(6, Math.round(levels[i] * 48))}px`; });
+        }
+        this.frame = requestAnimationFrame(draw);
+      };
+      this.frame = requestAnimationFrame(draw);
+    } catch { /* no waveform, recording still works */ }
+  },
+  quiet() {
+    cancelAnimationFrame(this.frame);
+    this.analyser = null;
+    if (this.audio) { this.audio.close().catch(() => {}); this.audio = null; }
   },
   stop() {
     return new Promise((resolve) => {
@@ -465,6 +619,7 @@ const recorder = {
       const stream = this.stream;
       const chunks = this.chunks;
       this.media = null; // stopped from now on, so a second stop can't throw this recording away
+      this.quiet();
       const seconds = Math.round((Date.now() - this.startedAt) / 1000);
       clearTimeout(this.stopTimer);
       media.onstop = async () => {
@@ -479,7 +634,9 @@ const recorder = {
   discard() {
     if (!this.media) return;
     clearTimeout(this.stopTimer);
-    this.media.onstop = () => { this.stream.getTracks().forEach((t) => t.stop()); };
+    this.quiet();
+    const stream = this.stream;
+    this.media.onstop = () => { stream.getTracks().forEach((t) => t.stop()); };
     this.media.stop();
     this.media = null;
   },
@@ -494,9 +651,11 @@ async function stopAndKeep() {
 }
 
 function fmt(seconds) {
-  const s = Math.max(0, Math.round(seconds));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  const sec = Math.max(0, Math.round(seconds));
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
 }
+
+let timerRing = null;
 
 function drawViva() {
   const s = viva.s;
@@ -505,111 +664,114 @@ function drawViva() {
   const q = s.questions.find((x) => x.id === s.current);
   if (!q) return;
   const key = `${q.id}|${s.followUp || ""}`;
-  if (viva.input.shownKey !== key) { viva.input.shownKey = key; viva.input.shownAt = Date.now(); } // the clock starts when the question first shows
+  const fresh = viva.input.shownKey !== key;
+  if (fresh) { viva.input.shownKey = key; viva.input.shownAt = Date.now(); } // the clock starts when the question first shows
   const a = JSON.parse(tab.get("vb_last_analysis") || "null");
   const mine = a && a.session_id === s.sessionId && a.contribution.focus_files.includes(q.file);
-  const n = s.questions.findIndex((x) => x.id === q.id) + 1;
-  const progress = h("div", { class: "progress" }, (() => { const p = h("span"); p.style.width = `${(s.answered.length / s.questions.length) * 100}%`; return p; })());
-  const timer = h("span", { class: "timer", id: "timer" }, fmt(s.timeLimit - (Date.now() - viva.input.shownAt) / 1000));
+  const idx = s.questions.findIndex((x) => x.id === q.id);
+  const left = s.timeLimit - (Date.now() - viva.input.shownAt) / 1000;
   const busy = s.loading;
 
-  const tabs = h("div", { class: "tabs", role: "tablist" },
-    [["voice", "Speak"], ["text", "Type"]].map(([id, label]) => h("button", {
+  const seg = h("div", { class: "seg", role: "tablist", "aria-label": "How to answer" },
+    [["voice", "Speak", "mic"], ["text", "Type", "keyboard"]].map(([id, label, iconName]) => h("button", {
       type: "button", role: "tab", "aria-selected": String(viva.input.tab === id), disabled: busy || recorder.active,
       onclick: () => { viva.input.tab = id; drawViva(); },
-    }, label)));
+    }, icon(iconName), label)));
 
   let area;
   if (viva.input.tab === "voice") {
     const rec = viva.input.rec;
-    const micButton = h("button", {
+    timerRing = VB.ring(Math.max(0, left / s.timeLimit) * 100, { size: 136, stroke: 6, label: "Time left" });
+    const mic = h("button", {
       type: "button", class: `mic${recorder.active ? " recording" : ""}`, disabled: busy,
-      "aria-label": recorder.active ? "Stop recording" : "Start recording",
+      "aria-label": recorder.active ? "Stop recording" : rec ? "Record again" : "Start recording",
       onclick: async () => {
         if (recorder.active) return stopAndKeep();
         viva.s.error = null;
+        viva.input.rec = null;
         try { await recorder.start(); } catch {
           viva.s.error = { message: "We couldn't use your microphone. You can type your answer instead.", code: "LOCAL" };
           viva.input.tab = "text";
         }
         drawViva();
       },
-    }, recorder.active ? "Stop" : "Speak");
-    area = h("div", { class: "answer-area" },
-      h("div", { class: "mic-row" }, micButton,
-        h("p", { class: "soft", id: "rec-status" }, recorder.active ? "Recording… tap to stop." : rec ? `Recorded ${fmt(rec.seconds)}.` : "Tap to start speaking.")),
+    }, icon(recorder.active ? "stop" : "mic"));
+    area = h("div", { class: "voice" },
+      h("div", { class: "mic-wrap" }, timerRing, mic),
+      h("div", { class: `wave${recorder.active ? "" : " idle"}`, id: "wave", "aria-hidden": "true" }, Array.from({ length: 28 }, () => h("span"))),
+      h("p", { class: "voice-status body-m", id: "rec-status" }, recorder.active ? "Recording. Tap to stop." : rec ? `Recorded ${fmt(rec.seconds)}. Send it, or tap the mic to record again.` : "Tap the mic and explain in your own words."),
       rec && !recorder.active ? h("div", { class: "actions" },
-        h("button", { disabled: busy, onclick: () => viva.submit({ mode: "voice", audio_base64: rec.base64, audio_mime: rec.mime, duration_s: rec.seconds }).then(drawViva) }, busy ? "Saving your answer…" : "Submit answer"),
-        h("button", { class: "quiet", disabled: busy, onclick: () => { viva.input.rec = null; drawViva(); } }, "Record again")) : null);
+        button(busy ? "Saving your answer…" : "Send answer", { kind: "lg", iconName: "check", disabled: busy, onclick: () => viva.submit({ mode: "voice", audio_base64: rec.base64, audio_mime: rec.mime, duration_s: rec.seconds }).then(drawViva) })) : null);
   } else {
-    const box = h("textarea", { id: "answer", maxlength: "6000", placeholder: "Explain in your own words. Any language is fine.", disabled: busy, "aria-label": "Your answer" });
-    box.value = viva.input.text;
-    box.addEventListener("input", () => { viva.input.text = box.value; });
-    box.addEventListener("paste", () => { viva.input.pasted = true; });
-    area = h("div", { class: "answer-area" }, box,
-      h("div", {}, h("button", {
-        disabled: busy,
+    timerRing = null;
+    const box = VB.textField({ id: "answer", label: "Your answer", multiline: true, attrs: { maxlength: "6000", placeholder: "Explain in your own words. Any language is fine.", disabled: busy } });
+    box.input.value = viva.input.text;
+    box.input.addEventListener("input", () => { viva.input.text = box.input.value; });
+    box.input.addEventListener("paste", () => { viva.input.pasted = true; });
+    area = h("div", { class: "fields" }, box.wrap,
+      h("div", { class: "actions end" }, button(busy ? "Saving your answer…" : "Send answer", {
+        kind: "lg", iconName: "check", disabled: busy,
         onclick: () => {
-          if (!viva.input.text.trim()) { viva.s.error = { message: "Please type an answer first.", code: "LOCAL" }; return drawViva(); }
+          if (!viva.input.text.trim()) { viva.s.error = { message: "Type an answer first.", code: "LOCAL" }; return drawViva(); }
           const seconds = Math.min(3600, Math.round((Date.now() - viva.input.shownAt) / 1000));
           return viva.submit({ mode: "text", answer_text: viva.input.text, duration_s: seconds, pasted: viva.input.pasted }).then(drawViva);
         },
-      }, busy ? "Saving your answer…" : "Submit answer")));
+      })));
   }
 
   const err = s.error;
-  const errorBox = err ? h("div", { class: "form-grid" }, notice(err.message),
-    RETRYABLE.has(err.code) && s.failed
-      ? h("div", {}, h("button", { onclick: () => viva.send(s.failed).then(drawViva) }, "Try again"))
-      : null) : null;
+  const errorBox = err ? VB.banner(err.message, {
+    action: RETRYABLE.has(err.code) && s.failed ? button("Try again", { kind: "text", iconName: "refresh", onclick: () => viva.send(s.failed).then(drawViva) }) : null,
+  }) : null;
 
   app.replaceChildren(
-    h("div", { class: "viva-top" },
-      h("div", { class: "row-gap" },
-        h("strong", {}, `Question ${n} of ${s.questions.length}`),
-        h("span", { class: "spacer" }),
-        timer,
+    h("div", { class: "viva-bar" },
+      h("div", { class: "row" },
         h("button", {
-          class: "quiet", type: "button",
+          class: "icon-btn", type: "button", "aria-label": "Leave the viva",
           onclick: async () => {
-            if (await confirmDialog({ title: "Leave the viva?", text: "Your answers so far are saved. You can continue from your home page.", confirm: "Leave" })) {
+            if (await VB.confirm({ title: "Leave the viva?", text: "Your answers so far are saved. You can continue from your home page.", confirmText: "Leave", iconName: "logout" })) {
               recorder.discard();
               go("#/home");
             }
           },
-        }, "Leave")),
-      progress),
-    h("div", { class: "form-grid" },
-      s.lastTranscript ? h("div", { class: "heard" },
-        h("p", {}, `Answer saved. We heard: “${s.lastTranscript}”`),
-        h("button", { class: "quiet", type: "button", "aria-label": "Dismiss", onclick: () => { s.lastTranscript = null; drawViva(); } }, "Close")) : null,
-      h("div", { class: "row-gap" },
-        chip({ easy: "Easy", medium: "Medium", hard: "Hard" }[q.difficulty] || q.difficulty, "not_shown"),
-        chip(TAG_NAME[q.skill] || q.skill, "not_shown"),
-        mine ? h("span", { class: "small soft" }, "You changed this file") : null),
-      h("div", { class: "code-card" }, VB.codeBlock(`${q.file}  lines ${q.lines}`, q.snippet, q.snippet_start_line)),
+        }, icon("close")),
+        h("span", { class: "title-m" }, `Question ${idx + 1} of ${s.questions.length}`),
+        h("span", { class: "spacer" }),
+        h("span", { class: "timer", id: "timer" }, icon("timer", "sm"), h("span", { id: "timer-text" }, fmt(left)))),
+      VB.stepsBar(s.questions.length, s.answered.length, idx)),
+    h("div", { class: "viva-body" },
+      h("div", { class: "chips" },
+        chip({ easy: "Easy", medium: "Medium", hard: "Hard" }[q.difficulty] || q.difficulty, "fact"),
+        chip(TAG_NAME[q.skill] || q.skill, "primary", TAG_ICON[q.skill]),
+        mine ? chip("You changed this file", "tertiary", "commit") : null),
       s.followUp
-        ? [h("div", { class: "followup" }, h("strong", {}, "One more chance on this question"), h("p", {}, s.followUp)), h("p", { class: "question muted" }, q.question)]
-        : h("p", { class: "question" }, q.question),
-      tabs, area, errorBox));
+        ? [h("div", { class: "followup" }, icon("forum"), h("strong", { class: "label-l" }, "One more chance on this question"), h("p", {}, s.followUp)), h("p", { class: "question-text muted" }, q.question)]
+        : h("p", { class: "question-text" }, q.question),
+      VB.codeBlock(q.file, q.lines, q.snippet, q.snippet_start_line),
+      h("div", { class: "answer-panel" }, seg, area, errorBox)));
+  if (fresh) window.scrollTo({ top: 0, behavior: "smooth" }); // a new question or follow-up starts at the top
 }
 
 function tick() {
   const el = document.getElementById("timer");
   if (!el || !viva.s) return;
   const left = viva.s.timeLimit - (Date.now() - viva.input.shownAt) / 1000;
-  el.textContent = left > 0 ? fmt(left) : "Time's up. Submit what you have.";
+  document.getElementById("timer-text").textContent = left > 0 ? fmt(left) : "Time's up";
+  el.classList.toggle("low", left > 0 && left <= 15);
   el.classList.toggle("up", left <= 0);
+  if (timerRing && timerRing.isConnected) timerRing.set(Math.max(0, left / viva.s.timeLimit) * 100);
   if (left <= 0 && recorder.active) stopAndKeep();
   const status = document.getElementById("rec-status");
-  if (status && recorder.active) status.textContent = `Recording ${fmt((Date.now() - recorder.startedAt) / 1000)}… tap to stop.`;
+  if (status && recorder.active) status.textContent = `Recording ${fmt((Date.now() - recorder.startedAt) / 1000)}. Tap to stop.`;
 }
 
 async function showViva(token) {
+  frame("viva");
   const sessionId = tab.get("vb_session_id");
   if (!viva.s || viva.s.sessionId !== sessionId) {
     if (!sessionId) return go("#/home", true);
-    paint(token, loading("Loading your viva…"));
+    paint(token, VB.loadingView("Loading your viva…"));
     try {
       await viva.resume(sessionId);
     } catch (e) {
@@ -624,81 +786,93 @@ async function showViva(token) {
 }
 
 async function showDone(token) {
+  frame(null);
   tab.del("vb_session_id");
   const a = JSON.parse(tab.get("vb_last_analysis") || "null");
-  paint(token, loading("Saving your results…"));
+  paint(token, VB.loadingView("Scoring your answers…"));
   const report = await api(`/api/report/${enc(me.id())}`);
   const verified = a ? report.hackathons.filter((x) => x.verified && x.repo_full_name.toLowerCase() === a.repo.full_name.toLowerCase()) : [];
-  paint(token, h("div", { class: "form-grid" },
-    h("h1", {}, "Viva complete"),
-    h("p", { class: "soft" }, "Your report is ready."),
-    verified.map((x) => h("div", { class: "heard" }, h("p", {}, `This viva also verified: ${RESULT_LABEL[x.result]} at ${x.event} ${x.year}.`))),
-    h("div", { class: "actions" },
-      h("a", { class: "button", href: "#/report" }, "See my report"),
-      h("a", { class: "button quiet", href: "#/home" }, "Back to home"))));
+  paint(token, h("div", { class: "center-stage" },
+    report.status === "done" ? VB.scoreBadge(report.overall, 168) : null,
+    h("h1", { class: "display-s" }, "Viva complete"),
+    h("p", { class: "body-l var" }, "Your report is ready. It stays private until you apply to an internship."),
+    verified.map((x) => VB.banner(`This viva also verified your hackathon: ${RESULT_LABEL[x.result]} at ${x.event} ${x.year}.`, { kind: "ok", iconName: "emoji_events" })),
+    h("div", { class: "actions" }, button("See my report", { href: "#/report", kind: "lg", iconName: "verified" }), button("Find internships", { href: "#/internships", kind: "lg tonal", iconName: "work" }))));
 }
 
-// ---------- Report ----------
+// ---------- Report and internships ----------
 
-async function apply(m, listing) {
+async function apply(m) {
   const box = h("input", { type: "checkbox", id: "consent" });
-  const ok = await confirmDialog({
-    title: `Apply to ${m.title} at ${m.venture}?`,
-    text: `Applying shares your VerifiedBuild report (scores, answers, code evidence and hackathons) with ${m.venture} for this role. Nobody else sees it.`,
-    confirm: "Apply",
-    extra: h("label", { class: "check", for: "consent" }, box, `I agree to share my report with ${m.venture}.`),
+  const ok = await VB.confirm({
+    title: `Apply to ${m.venture}?`,
+    text: `${m.title}. Applying shares your VerifiedBuild report (scores, answers, code evidence and hackathons) with ${m.venture} for this role. Nobody else sees it.`,
+    confirmText: "Apply", iconName: "work",
+    extra: h("label", { class: "check body-m", for: "consent" }, box, `I agree to share my report with ${m.venture}.`),
     gate: box,
   });
   if (!ok || !box.checked) return;
   try {
     await api("/api/apply", { method: "POST", body: { student_id: me.id(), listing_id: m.listing_id, share_consent: true } });
+    VB.snackbar(`Applied to ${m.venture}. They can now see your report.`);
   } catch (e) {
-    if (e.code !== "ALREADY_APPLIED") alert(e.message);
+    if (e.code !== "ALREADY_APPLIED") VB.snackbar(e.message);
   }
   render();
 }
 
-async function showReport(token) {
-  paint(token, loading("Loading your report…"));
+const applyAction = (m) => (m.applied ? chip("Applied", "strong", "check_circle") : button("Apply", { iconName: "work", onclick: () => apply(m) }));
+
+async function loadReport() {
   const [r, listings] = await Promise.all([api(`/api/report/${enc(me.id())}`), api("/api/listings").then((x) => x.listings).catch(() => [])]);
+  return { r, byId: Object.fromEntries(listings.map((l) => [l.id, l])), listings };
+}
+
+function notYet(token, title) {
+  return paint(token,
+    head(title, "Finish a viva first. Your scores, matches and report appear here after your fifth answer."),
+    h("div", { class: "actions" }, button("Pick a repo", { href: "#/repos", kind: "lg", iconAfter: "arrow_forward" })));
+}
+
+async function showInternships(token) {
+  frame("internships");
+  paint(token, VB.loadingView("Loading internships…"));
+  const { r, byId, listings } = await loadReport();
   if (r.status !== "done") {
-    return paint(token, h("div", { class: "form-grid" },
-      h("h1", {}, "Finish your viva to see your scores"),
-      h("div", {}, h("a", { class: "button", href: "#/home" }, "Back to home"))));
+    return paint(token,
+      head("Internships", "Finish a viva to see how well you match each one. Only skills you show count."),
+      h("div", { class: "list" }, listings.map((l) => h("div", { class: "li" },
+        shape("cookie6", 40, "secondary", h("span", { class: "label-l" }, l.venture.slice(0, 1))),
+        h("div", { class: "li-main" }, h("div", { class: "title-m" }, l.title), h("div", { class: "body-m var clamp-2" }, `${l.venture}. ${l.description}`)),
+        h("span", {})))),
+      h("div", { class: "section actions" }, button("Pick a repo", { href: "#/repos", kind: "lg", iconAfter: "arrow_forward" })));
   }
-  const byId = Object.fromEntries(listings.map((l) => [l.id, l]));
+  paint(token,
+    head("Internships", "Matched on the skills and hackathons you verified. Applying shares your report with that company only."),
+    h("div", { class: "matches" }, r.matches.map((m, i) => VB.matchCard(m, byId[m.listing_id], { top: i === 0 && m.match > 0, action: applyAction(m) }))));
+}
+
+async function showReport(token) {
+  frame("report");
+  paint(token, VB.loadingView("Loading your report…"));
+  const { r, byId } = await loadReport();
+  if (r.status !== "done") return notYet(token, "Your report");
   const repos = [...new Set(r.evidence.map((e) => e.repo_full_name))];
   paint(token,
-    h("div", { class: "report-head" },
-      h("div", {},
-        h("a", { class: "crumb", href: "#/home" }, "Back to home"),
-        h("h1", {}, r.student.name),
-        h("p", { class: "small soft" }, repos.length > 1 ? `Based on vivas on ${repos.length} repos: ${repos.join(", ")}` : `Based on a viva on ${repos[0]}`)),
-      h("div", { class: "overall" }, h("div", { class: "overall-num" }, String(r.overall)), h("div", { class: "small soft" }, "overall, out of 100"))),
-    h("section", { class: "block" },
-      h("h2", {}, "You said, you showed"),
-      h("p", { class: "block-note" }, "Only what you showed counts toward matches."),
-      VB.claimedTable(r.claimed_vs_verified, "you")),
-    h("section", { class: "block" }, h("h2", {}, "Verified skills"), VB.skillBars(r.skills)),
-    r.hackathons.length ? h("section", { class: "block" }, h("h2", {}, "Your hackathons"), h("div", {}, VB.hackathonRows(r.hackathons, "you"))) : null,
-    h("section", { class: "block" },
-      h("h2", {}, "Internships matched on what you showed"),
-      h("div", {}, r.matches.map((m) => h("div", { class: "hack" },
-        h("div", {},
-          h("strong", {}, `${m.title}, ${m.venture}`),
-          byId[m.listing_id] ? h("p", { class: "small" }, byId[m.listing_id].description) : null,
-          h("p", { class: "small soft" }, m.why)),
-        h("div", { class: "row-gap" },
-          h("strong", {}, `${m.match}%`),
-          m.applied ? chip("Applied", "strong") : h("button", { onclick: () => apply(m, byId[m.listing_id]) }, "Apply")))))),
-    h("section", { class: "block" },
-      h("h2", {}, "Your answers"),
-      h("p", { class: "block-note" }, "Each question was about the code shown. Your words sit beside it."),
-      h("div", { class: "evidence" }, r.evidence.map((e, i) => VB.evidenceSheet(e, i, "you")))),
-    r.build_history ? h("section", { class: "block" },
-      h("h2", {}, "How the repo was built"),
-      VB.buildHistoryFacts(r.build_history, "you"),
-      h("p", { class: "block-note" }, "Facts from GitHub. They don't change your score.")) : null);
+    h("div", { class: "section" },
+      h("div", { class: "passport" },
+        h("div", { class: "passport-who" },
+          h("div", { class: "passport-id" }, VB.avatar(r.student.github_username, "lg"),
+            h("div", {}, h("h1", { class: "headline-m" }, r.student.name), h("div", { class: "li-meta body-m" }, h("span", {}, r.student.college), h("span", {}, `@${r.student.github_username}`)))),
+          h("div", { class: "chips" }, chip("Verified by viva", "primary", "verified"), repos.map((x) => chip(repoName(x), "fact", "code")))),
+        VB.scoreBadge(r.overall, 120))),
+    section("Verified skills", h("p", { class: "section-note" }, "From your answers. 70 and up is strong, 40 to 69 partial."), VB.skillStamps(r.skills)),
+    section("You said, you showed", h("p", { class: "section-note" }, "Only what you showed counts toward matches."), VB.claimsList(r.claimed_vs_verified, "you")),
+    section("Internships for you", h("div", { class: "matches" }, r.matches.slice(0, 3).map((m, i) => VB.matchCard(m, byId[m.listing_id], { top: i === 0 && m.match > 0, action: applyAction(m) })),
+      h("div", {}, button("See all internships", { href: "#/internships", kind: "text", iconAfter: "arrow_forward" })))),
+    r.hackathons.length ? section("Your hackathons", VB.hackathonList(r.hackathons, "you")) : null,
+    section("Your answers", h("p", { class: "section-note" }, "Each question was about the code shown beside it."), h("div", { class: "evidence" }, r.evidence.map((e, i) => VB.evidenceSheet(e, i, "you")))),
+    r.build_history ? section("How the repo was built", h("p", { class: "section-note" }, "Facts from GitHub. They don't change your score."), VB.buildHistory(r.build_history, "you")) : null);
 }
 
 // ---------- Router ----------
@@ -716,7 +890,6 @@ async function render() {
   const page = parts[0] || "";
   if (page !== "viva" && recorder.active) recorder.discard();
   if (!me.id()) return showSignup(token);
-  signoutButton.hidden = false;
   try {
     if (page === "repos") await showRepos(token);
     else if (page === "analyzing" && query.get("repo")) await showAnalyzing(token, query.get("repo"));
@@ -724,17 +897,23 @@ async function render() {
     else if (page === "viva") await showViva(token);
     else if (page === "done") await showDone(token);
     else if (page === "report") await showReport(token);
+    else if (page === "internships") await showInternships(token);
     else await showHome(token);
   } catch (e) {
     if (token !== viewToken) return;
     if (e.code === "STUDENT_NOT_FOUND") { me.forget(); return showSignup(token, "We couldn't find your profile. Please sign up again."); }
-    paint(token, h("div", { class: "form-grid" }, notice(e.message), h("div", {}, h("button", { onclick: () => render() }, "Try again"))));
+    paint(token, h("div", { class: "center-stage" }, VB.banner(e.message, { action: button("Try again", { kind: "text", iconName: "refresh", onclick: () => render() }) })));
   }
 }
 
-signoutButton.addEventListener("click", async () => {
-  if (!await confirmDialog({ title: "Sign out on this device?", text: "Your profile and results stay saved. Sign up again with the same GitHub to start fresh.", confirm: "Sign out" })) return;
+accountButton.addEventListener("click", async () => {
+  if (!await VB.confirm({
+    title: "Sign out on this device?",
+    text: `You're signed in as @${me.github()}. Your profile and results stay saved. Sign up again with the same GitHub to start fresh.`,
+    confirmText: "Sign out", iconName: "logout",
+  })) return;
   me.forget();
+  accountButton.replaceChildren();
   go("#/");
   render();
 });

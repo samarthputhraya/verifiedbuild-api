@@ -1,0 +1,16 @@
+{
+  "name": "VerifiedBuild",
+  "short_name": "VerifiedBuild",
+  "description": "Answer 5 questions about your own GitHub code and get matched to internships on the skills you show.",
+  "id": "/app/",
+  "start_url": "/app/",
+  "scope": "/app/",
+  "display": "standalone",
+  "background_color": "#f9f5ff",
+  "theme_color": "#f9f5ff",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
