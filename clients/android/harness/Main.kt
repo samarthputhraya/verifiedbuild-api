@@ -23,7 +23,8 @@ fun main(args: Array<String>) = runBlocking {
         "get_github_repos" to ReposResponse::class.java, "post_analyze" to AnalyzeResponse::class.java,
         "get_viva" to VivaStateResponse::class.java, "post_viva_answer" to AnswerResponse::class.java,
         "get_report" to ReportResponse::class.java, "get_listings" to ListingsResponse::class.java,
-        "post_apply" to ApplyResponse::class.java,
+        "post_apply" to ApplyResponse::class.java, "post_hackathon" to HackathonItem::class.java,
+        "delete_hackathon" to OkResponse::class.java,
     )
     for ((name, cls) in pairs) {
         val parsed: Any? = try { m.adapter(cls).fromJson(File(examples, "$name.json").readText()) } catch (e: Exception) { e }
@@ -31,7 +32,8 @@ fun main(args: Array<String>) = runBlocking {
     }
     val rep = m.adapter(ReportResponse::class.java).fromJson(File(examples, "get_report.json").readText())!!
     check("report example fields mapped",
-        rep.buildHistory?.yourCommitShare == 1.0 && !rep.evidence[0].hadFollowUp && rep.claimedVsVerified.size == 4 && rep.skills["backend"] == 81, rep)
+        rep.buildHistory?.yourCommitShare == 0.61 && !rep.evidence[0].hadFollowUp && rep.claimedVsVerified.size == 4 && rep.skills["backend"] == 81 &&
+            rep.hackathons[0].verified && rep.hackathons[0].vivaScore == 72 && rep.vivaInProgress == null && rep.evidence[0].snippetStartLine == 40, rep)
     val req = m.adapter(AnswerRequest::class.java).toJson(AnswerRequest(questionId = "q1", isFollowUp = false, mode = "text", answerText = "hi"))
     check("request JSON uses API names and drops nulls",
         req == "{\"question_id\":\"q1\",\"is_follow_up\":false,\"mode\":\"text\",\"answer_text\":\"hi\",\"pasted\":false}", req)
@@ -60,8 +62,18 @@ fun main(args: Array<String>) = runBlocking {
     val missing = ApiClient.call { report("00000000-0000-0000-0000-000000000000") }
     check("unknown student -> STUDENT_NOT_FOUND 404", missing is ApiResult.Err && missing.code == "STUDENT_NOT_FOUND" && missing.httpStatus == 404, missing)
 
+    val h = ok("live add hackathon", ApiClient.call {
+        addHackathon(st.studentId, HackathonCreateRequest("Harness Hack", 2026, "finalist", 2, "samarthputhraya/kavach"))
+    }) ?: return@runBlocking
+    check("hackathon starts unverified", !h.verified && h.vivaScore == null && h.yourCommitShare == null, h)
+    val badHack = ApiClient.call { addHackathon(st.studentId, HackathonCreateRequest("X", 2026, "winner", 2, "torvalds/linux")) }
+    check("hackathon on someone else's repo -> REPO_NOT_OWNED", badHack is ApiResult.Err && badHack.code == "REPO_NOT_OWNED", badHack)
+
     val a = ok("live analyze", ApiClient.call { analyze(AnalyzeRequest(st.studentId, "samarthputhraya/kavach")) }) ?: return@runBlocking
     check("5 questions with snippets", a.questions.size == 5 && a.questions.all { it.snippet.isNotBlank() && it.snippetStartLine >= 1 }, a.questions)
+    check("contribution present (solo repo)", !a.contribution.teamRepo && a.contribution.focusFiles.isEmpty(), a.contribution)
+    val mid = ok("live report during viva", ApiClient.call { report(st.studentId) })
+    check("viva_in_progress during viva", mid?.vivaInProgress?.sessionId == a.sessionId && mid.vivaInProgress?.total == 5, mid?.vivaInProgress)
     val notDone = ApiClient.call { apply(ApplyRequest(st.studentId, "l-promtal-backend", true)) }
     check("apply before done -> VIVA_NOT_DONE", notDone is ApiResult.Err && notDone.code == "VIVA_NOT_DONE", notDone)
 
@@ -88,11 +100,17 @@ fun main(args: Array<String>) = runBlocking {
         done.status == "done" && done.evidence.size == 5 && done.buildHistory != null && done.repo?.fullName == "samarthputhraya/kavach", done)
     check("q1 evidence recorded as voice; q5 as pasted",
         done.evidence.first { it.questionId == "q1" }.mode == "voice" && done.evidence.first { it.questionId == "q5" }.pasted)
+    check("evidence carries the code and repo", done.evidence.all { it.snippet.isNotBlank() && it.repoFullName == "samarthputhraya/kavach" })
+    check("hackathon verified by the viva", done.hackathons.single().verified && done.hackathons.single().vivaScore == done.overall && done.vivaInProgress == null, done.hackathons)
     println("   overall=${done.overall} skills=${done.skills} levels=${done.claimedVsVerified.map { it.name + ":" + it.level }}")
     val applied = ok("live apply", ApiClient.call { apply(ApplyRequest(st.studentId, done.matches.first().listingId, true)) })
     check("apply returns match", applied?.status == "applied" && applied.match == done.matches.first().match, applied)
     val again = ok("report shows applied", ApiClient.call { report(st.studentId) })
     check("applied flag set", again?.matches?.first { it.listingId == done.matches.first().listingId }?.applied == true)
+    val del = ok("live delete hackathon", ApiClient.call { deleteHackathon(st.studentId, h.hackathonId) })
+    check("delete returns ok", del?.ok == true)
+    val del2 = ApiClient.call { deleteHackathon(st.studentId, h.hackathonId) }
+    check("second delete -> HACKATHON_NOT_FOUND", del2 is ApiResult.Err && del2.code == "HACKATHON_NOT_FOUND", del2)
     if (args.size > 2 && args[2] == "flow") {
         println("--- VivaController flow")
         vivaFlowTest("samarthputhraya", "samarthputhraya/kavach")

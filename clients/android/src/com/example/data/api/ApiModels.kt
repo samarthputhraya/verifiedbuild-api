@@ -2,7 +2,7 @@ package com.example.data.api
 
 import com.squareup.moshi.Json
 
-// Every request and response of the VerifiedBuild API (contract v1).
+// Every request and response of the VerifiedBuild API (contract v1.1).
 // Field names in @Json(...) must match the API exactly. Do not rename them.
 // A "?" type means the API can send null there; handle it in the UI.
 
@@ -88,10 +88,19 @@ data class VivaQuestion(
     val difficulty: String,
 )
 
+// Team repo: someone else owns it or several people committed. Questions then focus on focusFiles,
+// the files this student changed.
+data class Contribution(
+    @param:Json(name = "team_repo") val teamRepo: Boolean,
+    @param:Json(name = "your_commits") val yourCommits: Int,
+    @param:Json(name = "focus_files") val focusFiles: List<String>,
+)
+
 data class AnalyzeResponse(
     @param:Json(name = "session_id") val sessionId: String,
     val repo: AnalyzedRepo,
     @param:Json(name = "repo_skills") val repoSkills: List<RepoSkill>,
+    val contribution: Contribution,
     val questions: List<VivaQuestion>,
     @param:Json(name = "time_limit_s") val timeLimitS: Int,
 )
@@ -154,8 +163,11 @@ data class ClaimedVsVerified(
 
 data class EvidenceItem(
     @param:Json(name = "question_id") val questionId: String,
+    @param:Json(name = "repo_full_name") val repoFullName: String,
     val file: String,
     val lines: String,
+    val snippet: String, // the code the question was about; show it next to the answer
+    @param:Json(name = "snippet_start_line") val snippetStartLine: Int,
     val question: String,
     @param:Json(name = "answer_excerpt") val answerExcerpt: String,
     @param:Json(name = "evidence_quote") val evidenceQuote: String,
@@ -178,6 +190,27 @@ data class BuildHistory(
     @param:Json(name = "median_lines_per_commit") val medianLinesPerCommit: Int,
 )
 
+// A hackathon on the student's profile. Only a claim until verified by a finished viva on its repo.
+data class HackathonItem(
+    @param:Json(name = "hackathon_id") val hackathonId: String,
+    val event: String,
+    val year: Int,
+    val result: String, // "winner", "finalist" or "participant"
+    @param:Json(name = "team_size") val teamSize: Int,
+    @param:Json(name = "repo_full_name") val repoFullName: String,
+    val verified: Boolean,
+    @param:Json(name = "viva_score") val vivaScore: Int?, // null until verified
+    @param:Json(name = "your_commit_share") val yourCommitShare: Double?, // null until verified
+)
+
+// An unfinished viva, so the app can offer "Continue".
+data class VivaInProgress(
+    @param:Json(name = "session_id") val sessionId: String,
+    @param:Json(name = "repo_full_name") val repoFullName: String?,
+    val answered: Int,
+    val total: Int,
+)
+
 data class MatchItem(
     @param:Json(name = "listing_id") val listingId: String,
     val title: String,
@@ -196,6 +229,8 @@ data class ReportResponse(
     @param:Json(name = "claimed_vs_verified") val claimedVsVerified: List<ClaimedVsVerified>,
     val evidence: List<EvidenceItem>,
     @param:Json(name = "build_history") val buildHistory: BuildHistory?,
+    val hackathons: List<HackathonItem>,
+    @param:Json(name = "viva_in_progress") val vivaInProgress: VivaInProgress?,
     val matches: List<MatchItem>,
 )
 
@@ -224,4 +259,18 @@ data class ApplyResponse(
     @param:Json(name = "application_id") val applicationId: String,
     val status: String,
     val match: Int,
+)
+
+// ---------- POST /api/students/{student_id}/hackathons ----------
+data class HackathonCreateRequest(
+    val event: String,
+    val year: Int,
+    val result: String, // "winner", "finalist" or "participant"
+    @param:Json(name = "team_size") val teamSize: Int,
+    @param:Json(name = "repo_full_name") val repoFullName: String,
+)
+
+// ---------- DELETE /api/students/{student_id}/hackathons/{hackathon_id} ----------
+data class OkResponse(
+    val ok: Boolean,
 )

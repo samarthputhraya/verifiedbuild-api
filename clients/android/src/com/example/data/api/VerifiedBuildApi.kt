@@ -1,6 +1,7 @@
 package com.example.data.api
 
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -34,4 +35,10 @@ interface VerifiedBuildApi {
 
     @POST("api/apply")
     suspend fun apply(@Body body: ApplyRequest): ApplyResponse
+
+    @POST("api/students/{studentId}/hackathons")
+    suspend fun addHackathon(@Path("studentId") studentId: String, @Body body: HackathonCreateRequest): HackathonItem
+
+    @DELETE("api/students/{studentId}/hackathons/{hackathonId}")
+    suspend fun deleteHackathon(@Path("studentId") studentId: String, @Path("hackathonId") hackathonId: String): OkResponse
 }
