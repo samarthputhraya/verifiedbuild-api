@@ -8,7 +8,7 @@ These are the Kotlin files that [docs/ai-studio-android-prompts.md](../../docs/a
 
 How they were tested (2026-10-10, contract v1.1):
 - All 7 files compile against the Android 15 framework (Robolectric `android-all`) with Kotlin 2.2.10, with no warnings.
-- `harness/` parses all 14 `examples/*.json` contract samples and runs against the API with real GitHub and Gemini:
+- `harness/` parses the 11 student-facing `examples/*.json` contract samples and runs against the API with real GitHub and Gemini:
   - sign-up, repos and analyze (with `contribution`);
   - a voice answer sent as AAC/m4a, the format Android's MediaRecorder produces;
   - follow-ups, `viva_in_progress`, evidence with code snippets;
