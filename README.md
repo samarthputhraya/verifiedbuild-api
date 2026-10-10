@@ -61,13 +61,15 @@ From our own test runs on real repos (`samarthputhraya/Modelpin`, `samarthputhra
 ## Web pages
 
 `web/` holds the landing page, the student app (`web/app/`) and the recruiter dashboard (`web/recruiter/`), with shared rendering in `web/common.js`. Plain HTML, CSS and JavaScript with no build step, served by the API itself (`app/main.py`), so every call is same-origin. Voice answers use the browser's MediaRecorder (webm or mp4), and the API converts and transcribes them.
-- Design: Google's Material 3 Expressive, built by hand in `web/styles.css` and `web/common.js` (no framework).
-  - Colours come from one seed (#3D5AFE) via Google's `material-color-utilities`, in light and dark.
-  - The same values are in `design/tokens.json`, so the Android app can match them (`docs/android-theme-prompt.md`).
-- Our own pieces on top: skill stamps in Material shapes, the score badge, a code editor with syntax colours, and a voice waveform from the live microphone level.
+- **Design: skills, run like a build.** A student's skill lives in their code, so the product looks like the place code gets checked: a CI run. Built by hand in `web/styles.css` and `web/common.js` (no framework), light and dark.
+  - Reading a repo is a run with stages (`pipeline()`), and the 5 questions are 5 tests in the viva bar.
+  - Each question is a review comment on the student's own file, and a follow-up is a reply in the same thread.
+  - Verified skills come out as build badges (`backend | 87 strong`), and claimed vs verified is a diff from the resume to the viva.
+  - Each match shows its formula as one bar: verified skills, shared interests and verified hackathons (`matchBreakdown()`).
+  - The record is signed with a seal drawn from the student's own scores (`seal()`), so no two look the same; its foil follows the phone's tilt or the mouse.
 - The student app installs to a phone's home screen (`web/app/manifest.webmanifest`) and opens full screen.
 - Text from the API is always inserted as text, never as HTML. The Content-Security-Policy allows only the site's own files, plus GitHub profile pictures.
-- Fonts are Google Sans Flex and Google Sans Code (SIL Open Font License), and the icons are Material Symbols (Apache 2.0).
+- Fonts are Bricolage Grotesque and JetBrains Mono (SIL Open Font License), and the icons are Material Symbols (Apache 2.0).
   - Licences are in `web/fonts/`. All three are served from the same site, so venue Wi-Fi can't break them.
 
 ## Run locally

@@ -233,7 +233,7 @@ def test_web_pages_are_served_and_api_errors_stay_json():
         assert c.get("/common.js").status_code == 200 and c.get("/app/app.js").status_code == 200
         assert "Content-Security-Policy" in r.text
         assert c.get("/recruiter/app.js").status_code == 200
-        font = c.get("/fonts/google-sans-flex.woff2")
+        font = c.get("/fonts/bricolage-grotesque.woff2")
         assert font.status_code == 200 and font.headers["cache-control"] == "public, max-age=604800"
         js = c.get("/common.js")
         assert js.headers["cache-control"] == "no-cache" and c.get("/app/").headers["cache-control"] == "no-cache"
