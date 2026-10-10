@@ -14,31 +14,41 @@ const KEY = "vb_admin_key";
 const session = store(window.sessionStorage);
 const api = (path, opts = {}) => callApi(path, { ...opts, headers: opts.admin ? { "X-Admin-Key": session.get(KEY) || "" } : {} });
 
-// Loads data now and again every few seconds while the tab is visible. `live` is "ok", "stale" or null.
+// The "Updating live" tag in the top bar: "ok", "stale" or null, set by whichever page is polling
+const liveState = { value: null, listeners: new Set() };
+function setLive(v) { if (liveState.value === v) return; liveState.value = v; liveState.listeners.forEach((fn) => fn(v)); }
+function useLive() {
+  const [v, setV] = useState(liveState.value);
+  useEffect(() => { liveState.listeners.add(setV); return () => liveState.listeners.delete(setV); }, []);
+  return v;
+}
+
+// Loads data now and again every few seconds while the tab is visible.
 function usePoll(fn, deps) {
-  const [st, setSt] = useState({ loading: true, data: null, error: null, live: null });
+  const [st, setSt] = useState({ loading: true, data: null, error: null });
   const last = useRef("");
   useEffect(() => {
     let alive = true;
     last.current = "";
-    setSt({ loading: true, data: null, error: null, live: null });
+    setSt({ loading: true, data: null, error: null });
     const run = async (first) => {
       if (!alive || (!first && document.hidden)) return;
       try {
         const data = await fn();
         if (!alive) return;
         const json = JSON.stringify(data);
-        if (json !== last.current) { last.current = json; setSt({ loading: false, data, error: null, live: "ok" }); }
-        else setSt((s) => (s.live === "ok" ? s : { ...s, live: "ok" }));
+        if (json !== last.current) { last.current = json; setSt({ loading: false, data, error: null }); }
+        setLive("ok");
       } catch (error) {
         if (!alive) return;
-        if (first) setSt({ loading: false, data: null, error, live: null });
-        else setSt((s) => ({ ...s, live: error.code === "BAD_ADMIN_KEY" ? null : "stale", error: error.code === "BAD_ADMIN_KEY" ? error : s.error }));
+        if (first) { setSt({ loading: false, data: null, error }); setLive(null); }
+        else if (error.code === "BAD_ADMIN_KEY") { setSt((s) => ({ ...s, error })); setLive(null); }
+        else setLive("stale");
       }
     };
     run(true);
     const t = setInterval(() => run(false), POLL_MS);
-    return () => { alive = false; clearInterval(t); };
+    return () => { alive = false; clearInterval(t); setLive(null); };
   }, deps);
   return st;
 }
@@ -46,7 +56,8 @@ function usePoll(fn, deps) {
 const PageHead = ({ title, lead, back, action }) => html`<div class="page-head">${back ? html`<a class="back" href=${back[0]}><${Icon} name="arrow-left" size="sm" />${back[1]}</a>` : null}<div class="row between wrap"><h1 class="h1">${title}</h1>${action || null}</div>${lead ? html`<p class="lead">${lead}</p>` : null}</div>`;
 const Section = ({ title, note, children }) => html`<section class="section"><div class="section-head"><div><h2 class="h2">${title}</h2>${note ? html`<p>${note}</p>` : null}</div></div>${children}</section>`;
 
-function Shell({ live, signedIn, onSignOut, wide, children }) {
+function Shell({ signedIn, onSignOut, wide, children }) {
+  const live = useLive();
   return html`
     <header class="topbar">
       <a class="brand" href="#/"><${Mark} />VerifiedBuild <span class="sub">for recruiters</span></a>
@@ -89,7 +100,7 @@ function weightBars(required) {
 }
 
 function Listings({ onBadKey }) {
-  const { loading, data, error, live } = usePoll(async () => {
+  const { loading, data, error } = usePoll(async () => {
     const { listings } = await api("/api/listings");
     const shortlists = await Promise.all(listings.map((l) => api(`/api/admin/shortlist/${enc(l.id)}`, { admin: true })));
     return { listings, shortlists };
@@ -99,7 +110,7 @@ function Listings({ onBadKey }) {
   if (loading) return html`<div class="stack"><${Skeleton} w="30%" h="1.5rem" /><div class="grid">${[1, 2, 3].map(() => html`<${Skeleton} h="14rem" />`)}</div></div>`;
   const { listings, shortlists } = data;
   const applications = shortlists.reduce((n, sl) => n + sl.candidates.length, 0);
-  return html`<div class="fade" data-live=${live}>
+  return html`<div class="fade">
     <${PageHead} title="Internships" lead=${applications ? `${count(applications, "application")} so far. Students appear here when they apply and agree to share their report.` : "No applications yet. Students appear here when they apply and agree to share their report."} />
     <div class="grid">${listings.map((l, i) => {
       const c = shortlists[i].candidates;
@@ -163,7 +174,7 @@ function ReportView({ r, listing }) {
 
 function Shortlist({ listingId, initialSelected, onBadKey }) {
   const wide = useMedia("(min-width: 1200px)");
-  const { loading, data: sl, error, live } = usePoll(() => api(`/api/admin/shortlist/${enc(listingId)}`, { admin: true }), [listingId]);
+  const { loading, data: sl, error } = usePoll(() => api(`/api/admin/shortlist/${enc(listingId)}`, { admin: true }), [listingId]);
   const [listing, setListing] = useState(null);
   const [selected, setSelected] = useState(initialSelected);
   const [detail, setDetail] = useState({ id: null, loading: false, report: null, error: null });
@@ -199,8 +210,8 @@ function Shortlist({ listingId, initialSelected, onBadKey }) {
   if (error && !sl) return html`<${Banner}>${error.message}<//>`;
   if (loading) return html`<div class="stack"><${Skeleton} w="40%" h="1.5rem" /><${SkeletonList} rows=${4} /></div>`;
   const head = html`<${PageHead} back=${["#/", "All internships"]} title=${sl.listing.title} lead=${`${sl.listing.venture}. ${sl.candidates.length ? `${count(sl.candidates.length, "applicant")}, ranked` : "Ranked"} by match on verified skills and verified hackathons, then by overall score.`} action=${sl.candidates.length ? html`<${Button} kind="secondary" icon="download" busy=${csvBusy} onClick=${() => downloadCsv(listingId, setCsvBusy)}>Download CSV<//>` : null} />`;
-  if (!sl.candidates.length) return html`<div class="fade" data-live=${live}>${head}<div class="list"><${Empty} icon="users" title="No applicants yet" text="Students appear here the moment they apply and agree to share their report. This page updates by itself." /></div></div>`;
-  return html`<div class="fade" data-live=${live}>${head}
+  if (!sl.candidates.length) return html`<div class="fade">${head}<div class="list"><${Empty} icon="users" title="No applicants yet" text="Students appear here the moment they apply and agree to share their report. This page updates by itself." /></div></div>`;
+  return html`<div class="fade">${head}
     <div class="split">
       <div class="list split-list">${sl.candidates.map((c) => html`<${Candidate} key=${c.student_id} c=${c} listingId=${listingId} wide=${wide} selected=${wide && c.student_id === selected} isNew=${fresh.has(c.student_id)} onSelect=${select} />`)}</div>
       ${wide ? html`<div class="split-detail">${detail.loading ? html`<div class="stack"><${Skeleton} w="40%" h="1.5rem" /><${Skeleton} h="8rem" /><${SkeletonList} rows=${4} /></div>` : detail.error ? html`<${Banner}>${detail.error.message}<//>` : detail.report ? html`<${ReportView} r=${detail.report} listing=${listing || sl.listing} />` : null}</div>` : null}
