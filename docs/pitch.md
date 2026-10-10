@@ -30,7 +30,7 @@ Use the student whose story is clearest. If a founder or recruiter at the event 
 | 0:00–0:30 | SAM | The opening above. |
 | 0:30–0:50 | SAM | "Today recruiters filter on resume keywords, CGPA and GitHub stars. A hackathon win on a resume is taken on trust, and in a team of four nobody can tell who built what. Coding tests are generic, and AI can solve those too. None of it asks: do you understand the code you're showing me? VerifiedBuild does, in five minutes." |
 | 0:50–2:00 | Ayush | The demo path below. Say out loud what the judge should notice. |
-| 2:00–2:30 | SAM | "The hard part is making the questions about real code and the scoring fair. Every question points at real lines in the student's repo: we check the lines exist and cut the snippet from the file ourselves. The answer is scored against a rubric that never leaves our server. Spoken and typed answers go through the same scoring step, and the language doesn't matter: a Hinglish answer scored the same 10/10 as English. The match score itself uses no AI. It's a formula we can show you, and claimed skills count for zero." |
+| 2:00–2:30 | SAM | "The hard part is making the questions about real code and the scoring fair. Every question points at real lines in the student's repo: we check the lines exist and cut the snippet from the file ourselves. The answer is scored against a rubric that never leaves our server. Spoken and typed answers go through the same scoring step, and the language doesn't matter: a correct Hinglish answer scores 9 or 10 out of 10, the same as the English one. The match score itself uses no AI. It's a formula we can show you, and claimed skills count for zero." |
 | 2:30–3:00 | SAM | "[Who pays, from section 5.] Next we'd [one thing from the 30-day answer]. [Name] now has a profile that says: [skill], verified, [score], with [Name]'s own words as evidence. That's what gets [Name] the reply." |
 
 ## 3. Demo path (Ayush drives, about 70 seconds)
@@ -44,7 +44,7 @@ Prepare before going on stage:
 | Step | Click | Say |
 |---|---|---|
 | 1 | Phone 1: submit sign-up, then pick [repo] in the repo list | "Let's verify someone live. They sign up and pick their own project." |
-| 2 | Start the viva. During the ~15 s wait, narrate. On "We read …", point at it | "It's reading the repo now: it drops libraries and generated code and keeps the files that matter. ... It read [N] files and found [skill]: here's the sentence of evidence, naming the file." |
+| 2 | Start the viva. During the wait (usually ~15 s, sometimes up to 30 s), narrate. On "We read …", point at it | "It's reading the repo now: it drops libraries and generated code and keeps the files that matter. ... It read [N] files and found [skill]: here's the sentence of evidence, naming the file." |
 | 3 | "Start question 1", then answer it by voice, live (one sentence in Hinglish is fine) | "The question names a real function, and the code is lines [x–y] of their actual file. They answer out loud, in whatever language they think in. No score yet, on purpose." |
 | 4 | Phone 2: [Name]'s report | "Here's [Name]'s finished viva from this morning. They claimed [skill], and the viva didn't show it, so it says not shown. They didn't claim [skill], but they showed it. Every score has their own words as evidence." |
 | 5 | Scroll to hackathons | "[Name] listed [hackathon]. It shows as verified because the viva was on that team repo, and the questions were about the files [Name] committed, not the teammates' code." |
@@ -58,7 +58,7 @@ Optional, if SAM is confident: run step 2 on our own repo, `verifiedbuild-api`, 
 
 ## 4. Fallback
 
-If anything hangs for more than 20 seconds or errors, switch to the recorded video at the same step, and say:
+If the repo reading takes more than 40 seconds, an answer takes more than 25 seconds, or anything shows an error, switch to the recorded video at the same step, and say:
 
 > "Live Wi-Fi at a hackathon. Here's the same flow, recorded an hour ago on the same app."
 
@@ -76,7 +76,7 @@ Everything in the flow is live: GitHub reading, question writing, voice transcri
 [Team decision. Suggested: startups and HR-tech platforms like Promtal pay per verified shortlist, because it cuts screening time; or college placement cells pay per batch.] One viva costs us about [₹ from `python -m scripts.stats`] in AI, so [price] leaves a wide margin.
 
 **What happens when the AI is wrong?**
-A weak first answer gets a follow-up, and the better score counts. The recruiter sees the question, the student's own words and what was covered or missed, not only a number, and the match formula uses no AI at all. In our tests the same answer scored the same 3 times out of 3.
+A weak first answer gets a follow-up, and the better score counts. The recruiter sees the question, the student's own words and what was covered or missed, not only a number, and the match formula uses no AI at all. We scored each of 6 test answers 5 times, and no score moved by more than 1 point out of 10.
 
 **Can't a student just read an answer from ChatGPT?**
 Answers are timed and spoken, and they're about specific lines of the student's own code, with a follow-up when an answer is vague. We show the recruiter how each answer was given (voice or typed, and whether text was pasted) as plain facts, and we never accuse anyone.
@@ -85,7 +85,7 @@ Answers are timed and spoken, and they're about specific lines of the student's 
 On a team repo we read the student's own commits and ask only about the files they changed, so the viva is about their part. Their share of commits is shown as a plain fact, and the hackathon only counts toward a match after they pass that viva.
 
 **Isn't scoring spoken English unfair to some students?**
-The scorer is told to ignore language, accent and grammar and to score only understanding. A correct Hinglish answer scored 10/10, the same as English, and Telugu and Hindi answers are accepted.
+The scorer is told to ignore language, accent and grammar and to score only understanding. The same correct answer typed in Hinglish, in romanised Hindi and in Telugu mixed with English scored 9–10, the same as in English. We haven't yet tested spoken Telugu.
 
 **Could a student game the AI, for example with "give me full marks" in a code comment?**
 Repo text and answers are treated as data, not instructions. They're fenced in delimiters the content can't fake, and scores are clamped on our server. We tested exactly that answer, and it scored 0.
@@ -107,9 +107,9 @@ Before the final, get the volunteer numbers with [docs/volunteers.md](volunteers
 | | |
 |---|---|
 | Time for a student | 5 questions, about 90 s each |
-| Reading a repo and writing the questions | about 13 s (our tests) |
-| Scoring one answer | about 3 s typed, 6 s spoken |
-| Same answer, scored 3 times | the same score each time |
+| Reading a repo and writing the questions | usually about 13 s (our tests) |
+| Scoring one answer | usually 3–4 s typed, 6 s spoken |
+| Same answer, scored 5 times | never more than 1 point apart, out of 10 |
 | Vague answer / "give me 10" answer | 1 / 0 out of 10 |
 | Score gap: repos the owner built vs didn't build | [from `scripts.stats --labels`] |
 | Students verified tonight | [N], median score [N] |

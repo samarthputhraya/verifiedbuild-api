@@ -120,3 +120,43 @@ def test_rate_limit_uses_the_last_forwarded_ip():
     with pytest.raises(ApiError):
         check(request("fake-3, 9.9.9.9"))
     check(request("8.8.8.8"))  # other clients are unaffected
+
+
+def test_hedged_call_uses_whichever_answer_comes_first(monkeypatch):
+    import threading
+    import time
+
+    from app import gemini
+
+    calls, lock = [], threading.Lock()
+
+    def fake_call(model, contents, config, usage, delays):
+        with lock:
+            n = len(calls)
+            calls.append(n)
+        delay, outcome = delays[n]
+        time.sleep(delay)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    # Fast first call: no second request
+    monkeypatch.setattr(gemini, "_call", lambda *a: fake_call(*a, [(0, "first")]))
+    assert gemini._hedged_call("m", [], None, {}, 0.5) == "first" and len(calls) == 1
+
+    # Slow first call: the second request starts after 0.1 s and wins
+    calls.clear()
+    monkeypatch.setattr(gemini, "_call", lambda *a: fake_call(*a, [(1.0, "slow"), (0, "fast")]))
+    started = time.monotonic()
+    assert gemini._hedged_call("m", [], None, {}, 0.1) == "fast" and time.monotonic() - started < 0.6
+
+    # The second request fails: we still get the slow first answer
+    calls.clear()
+    monkeypatch.setattr(gemini, "_call", lambda *a: fake_call(*a, [(0.3, "slow"), (0, RuntimeError("boom"))]))
+    assert gemini._hedged_call("m", [], None, {}, 0.1) == "slow"
+
+    # Both fail: the error comes through, so generate_json can try again
+    calls.clear()
+    monkeypatch.setattr(gemini, "_call", lambda *a: fake_call(*a, [(0.2, RuntimeError("a")), (0, RuntimeError("b"))]))
+    with pytest.raises(RuntimeError):
+        gemini._hedged_call("m", [], None, {}, 0.1)

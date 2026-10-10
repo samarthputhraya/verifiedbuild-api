@@ -195,7 +195,8 @@ def _analyze(full_name: str, login: str, owned: bool) -> dict:
         # LOW thinking: ~10 s instead of 25-50 s, with questions as good in our side-by-side tests.
         result, usage = gemini.generate_json(
             [_questions_prompt(full_name, readme, files, mine)], QUESTIONS_SCHEMA,
-            system=QUESTIONS_SYSTEM, validate=lambda d: _clean_questions(d, files), thinking="LOW", timeout_s=90,
+            system=QUESTIONS_SYSTEM, validate=lambda d: _clean_questions(d, files),
+            thinking="LOW", timeout_s=90, hedge_after_s=gemini.HEDGE_QUESTIONS_S,
         )
         return {
             "repo_full_name": full_name,
@@ -344,6 +345,7 @@ def _evaluate(question: dict, files: dict[str, str], body: AnswerRequest, first:
         [prompt + f"\nThe student's answer:\n<<<ANSWER>>>\n{_safe(answer_text)}\n<<<END ANSWER>>>"],
         EVAL_SCHEMA, system=EVAL_SYSTEM, validate=lambda d: _clean_evaluation(d, answer_text),
         thinking="LOW", timeout_s=30,  # LOW: same scores as default in our tests, twice as fast
+        hedge_after_s=gemini.HEDGE_SCORE_S,
     )
     return evaluation, gemini.merge_usage(transcribe_usage, usage) if transcribe_usage else usage
 
