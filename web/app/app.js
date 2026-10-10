@@ -18,6 +18,7 @@ const REPO_RE = /^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/;
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 let viewToken = 0;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let ticker = null; // the viva timer
 
 const me = {
@@ -350,14 +351,15 @@ async function showHome(token) {
       h("div", { class: "hero-row" },
         h("div", { class: "fields" },
           h("h2", { class: "headline-s" }, "Your verified profile"),
-          h("div", { class: "chips" }, Object.entries(report.skills).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([tag, score]) => chip(`${TAG_NAME[tag]} ${score}`, levelOf(score), TAG_ICON[tag])))),
+          VB.skillBadges(report.skills, { only: (x) => x.score !== undefined })),
         VB.scoreSeal(report, 112)),
       h("div", { class: "actions" }, button("View report", { href: "#/report", iconName: "verified" }), button("Verify another repo", { href: "#/repos", kind: "tonal" })))
     : h("div", { class: "card hero" },
       h("div", { class: "hero-row" }, h("h2", { class: "headline-s" }, "Verify your skills"), VB.seal({ empty: true, size: 84, seed: report.student.github_username })),
-      h("ol", { class: "steps-list" },
-        [["Pick one of your GitHub repos"], ["Answer 5 questions about its code, out loud or typed"], ["Get matched to internships on what you showed"]]
-          .map(([t], i) => h("li", {}, h("span", { class: "steps-num" }, String(i + 1)), h("span", { class: "body-l" }, t)))),
+      VB.pipeline([
+        { state: "queued", label: "Pick one of your GitHub repos", sub: "Or a team repo you committed to" },
+        { state: "queued", label: "Answer 5 questions about its code", sub: "Out loud or typed, in any language" },
+        { state: "queued", label: "Get matched on what you showed", sub: "Verified skills, interests and hackathons" }]),
       h("div", { class: "actions" }, button("Pick a repo", { href: "#/repos", kind: "lg", iconAfter: "arrow_forward" })));
 
   const continueCard = inProgress ? h("div", { class: "card tertiary" },
@@ -382,7 +384,7 @@ async function showHome(token) {
     : h("p", { class: "body-m var" }, "Add the hackathons you've done. Each one counts toward your matches once you verify it with a viva on its repo.");
 
   const jobs = done
-    ? h("div", { class: "matches" }, report.matches.slice(0, 2).map((m, i) => VB.matchCard(m, byId[m.listing_id], { top: i === 0 })),
+    ? h("div", { class: "matches" }, report.matches.slice(0, 2).map((m, i) => VB.matchCard(m, byId[m.listing_id], { top: i === 0, report })),
       h("div", {}, button("See all internships", { href: "#/internships", kind: "text", iconAfter: "arrow_forward" })))
     : [h("p", { class: "section-note" }, "Finish a viva to see how well you match each one."),
       h("div", { class: "list" }, listings.map((l) => h("div", { class: "li" },
@@ -453,29 +455,49 @@ async function showRepos(token) {
 
 async function showAnalyzing(token, repo) {
   frame(null);
-  const step = (iconName, text) => h("li", {}, icon(iconName, "sm"), h("span", { class: "body-m" }, text));
   const clock = h("span", { class: "num" }, "0:00");
   const started = Date.now();
   const clockTimer = setInterval(() => { if (!clock.isConnected) return clearInterval(clockTimer); clock.textContent = fmt((Date.now() - started) / 1000); }, 500);
-  paint(token, h("div", { class: "center-stage", role: "status", "aria-label": `Reading ${repoName(repo)}` },
+  const stages = [
+    { state: "run", label: "Read the repo", sub: "Download it, then skip libraries, build output and generated files" },
+    { state: "queued", label: "Find the skills it shows", sub: "Rank files by how often other files import them" },
+    { state: "queued", label: "Write 5 questions", sub: "Each one about real lines in your files" },
+  ];
+  const status = h("span", { class: "status run" }, h("span", { class: "dot" }), "Running ", clock);
+  const pipeHost = h("div", {}, VB.pipeline(stages));
+  paint(token, h("div", { class: "center-stage" },
     h("h1", { class: "headline-l" }, `Reading ${repoName(repo)}`),
     h("p", { class: "body-l var" }, "This usually takes 15 to 30 seconds. Keep this page open."),
-    VB.scanner(repo),
-    h("div", { class: "scan-meta" }, h("span", {}, repo), clock),
-    h("div", { class: "card what-happens" },
-      h("h2", { class: "title-m" }, "What happens now"),
-      h("ul", {},
-        step("download", "We download the code from GitHub"),
-        step("description", "We skip libraries, build output and generated files, and keep the files that matter"),
-        step("forum", "We write 5 questions about real lines in those files")))));
+    h("div", { class: "run-card", role: "status", "aria-label": `Reading ${repo}` },
+      h("div", { class: "run-head" }, VB.brandMark(), h("span", { class: "mono" }, `verify ${repo}`), status),
+      pipeHost,
+      VB.scanner(repo))));
   try {
     const a = await api("/api/analyze", { method: "POST", body: { student_id: me.id(), repo_full_name: repo } });
     if (token !== viewToken) return;
     tab.set("vb_last_analysis", JSON.stringify(a));
     tab.set("vb_session_id", a.session_id);
     viva.start(a);
+    // Every step is finished now: fill each one in with what the API actually found
+    clearInterval(clockTimer);
+    const langs = Object.entries(a.repo.languages).sort((x, y) => y[1] - x[1]).slice(0, 2).map(([n, v]) => `${n} ${v}%`).join(", ");
+    const done = [
+      { state: "pass", label: "Read the repo", sub: `Kept ${VB.count(a.repo.files_read, "file")}${langs ? `: ${langs}` : ""}` },
+      { state: "pass", label: "Find the skills it shows", sub: a.repo_skills.map((x) => TAG_NAME[x.tag] || x.tag).join(", ") || "None found" },
+      { state: "pass", label: "Write 5 questions", sub: `${VB.count(a.questions.length, "question")} on real lines` },
+    ];
+    status.className = "status pass";
+    status.replaceChildren(h("span", { class: "dot" }), `Done in ${fmt((Date.now() - started) / 1000)}`);
+    for (let i = 0; i < done.length; i++) {
+      pipeHost.replaceChildren(VB.pipeline(done.map((d, j) => (j <= i ? d : { ...stages[j], state: "run" }))));
+      await sleep(320);
+      if (token !== viewToken) return;
+    }
+    await sleep(650);
+    if (token !== viewToken) return;
     go("#/found", true);
   } catch (e) {
+    clearInterval(clockTimer);
     if (token !== viewToken) return;
     paint(token, h("div", { class: "center-stage" },
       h("h1", { class: "headline-l" }, `We couldn't start the viva on ${repoName(repo)}`),
@@ -751,7 +773,11 @@ function drawViva() {
         h("span", { class: "title-m" }, `Question ${idx + 1} of ${s.questions.length}`),
         h("span", { class: "spacer" }),
         h("span", { class: "timer", id: "timer" }, icon("timer", "sm"), h("span", { id: "timer-text" }, fmt(left)))),
-      VB.stepsBar(s.questions.length, s.answered.length, idx)),
+      VB.pipeline(s.questions.map((x, i) => ({
+        state: s.answered.includes(x.id) ? "done" : x.id === q.id ? "run" : "queued",
+        sub: TAG_NAME[x.skill] || x.skill,
+        aria: `Question ${i + 1}, ${TAG_NAME[x.skill] || x.skill}: ${s.answered.includes(x.id) ? "answered" : x.id === q.id ? "now" : "next"}`,
+      })), { row: true, tests: true, label: `${s.answered.length} of ${s.questions.length} answered` })),
     h("div", { class: "viva-body" },
       // The question is a review comment on the student's own file; a follow-up is a reply in the same thread
       h("div", { class: "thread" },
@@ -806,10 +832,16 @@ async function showDone(token) {
   paint(token, VB.loadingView("Scoring your answers…"));
   const report = await api(`/api/report/${enc(me.id())}`);
   const verified = a ? report.hackathons.filter((x) => x.verified && x.repo_full_name.toLowerCase() === a.repo.full_name.toLowerCase()) : [];
-  paint(token, h("div", { class: "center-stage done-stage" },
-    report.status === "done" ? VB.scoreSeal(report, 232, { draw: true }) : null,
+  const repoFull = a ? a.repo.full_name : (report.evidence[0] ? report.evidence[0].repo_full_name : "");
+  const evidence = report.evidence.filter((e) => !repoFull || e.repo_full_name.toLowerCase() === repoFull.toLowerCase());
+  paint(token, h("div", { class: "center-stage done-stage run-done" },
+    report.status === "done" ? VB.scoreSeal(report, 220, { draw: true }) : null,
     h("h1", { class: "display-s" }, "Viva complete"),
     h("p", { class: "body-l var" }, "Your report is ready. It stays private until you apply to an internship."),
+    report.status === "done" ? h("div", { class: "run-card" },
+      h("div", { class: "run-head" }, VB.brandMark(), h("span", { class: "mono" }, `verify ${repoFull}`), h("span", { class: "status pass" }, h("span", { class: "dot" }), "Finished")),
+      VB.pipeline(evidence.map((e, i) => ({ state: VB.RUN_STATE[levelOf(e.score * 10)], label: `Question ${i + 1}`, sub: TAG_NAME[e.skill] || e.skill, when: `${e.score}/10` })), { label: "Your 5 answers" }),
+      VB.skillBadges(report.skills, { cascade: true, only: (x) => x.score !== undefined })) : null,
     verified.map((x) => VB.banner(`This viva also verified your hackathon: ${RESULT_LABEL[x.result]} at ${x.event} ${x.year}.`, { kind: "ok", iconName: "emoji_events" })),
     h("div", { class: "actions" }, button("See my report", { href: "#/report", kind: "lg", iconName: "verified" }), button("Find internships", { href: "#/internships", kind: "lg tonal", iconName: "work" }))));
 }
@@ -869,7 +901,7 @@ async function showInternships(token) {
   }
   paint(token,
     head("Internships", "Matched on the skills and hackathons you verified. Applying shares your report with that company only."),
-    h("div", { class: "matches" }, r.matches.map((m, i) => VB.matchCard(m, byId[m.listing_id], { top: i === 0 && m.match > 0, action: applyAction(m) }))));
+    h("div", { class: "matches" }, r.matches.map((m, i) => VB.matchCard(m, byId[m.listing_id], { top: i === 0 && m.match > 0, action: applyAction(m), report: r }))));
 }
 
 async function showReport(token) {
@@ -881,7 +913,8 @@ async function showReport(token) {
     h("div", { class: "section" }, VB.credential(r, "you")),
     section("Verified skills", h("p", { class: "section-note" }, "From your answers. 70 and up is strong, 40 to 69 partial."), VB.skillStamps(r.skills)),
     section("Resume → viva", h("p", { class: "section-note" }, "+ means you showed it without claiming it. − means it's on your resume but this viva didn't show it, so it doesn't count yet."), VB.claimsList(r.claimed_vs_verified, "you")),
-    section("Internships for you", h("div", { class: "matches" }, r.matches.slice(0, 3).map((m, i) => VB.matchCard(m, byId[m.listing_id], { top: i === 0 && m.match > 0, action: applyAction(m) })),
+    section("Internships for you", h("p", { class: "section-note" }, "Each match adds up verified skills, shared interests and verified hackathons. No AI in this number."),
+      h("div", { class: "matches" }, r.matches.slice(0, 3).map((m, i) => VB.matchCard(m, byId[m.listing_id], { top: i === 0 && m.match > 0, action: applyAction(m), report: r })),
       h("div", {}, button("See all internships", { href: "#/internships", kind: "text", iconAfter: "arrow_forward" })))),
     r.hackathons.length ? section("Your hackathons", VB.hackathonList(r.hackathons, "you")) : null,
     section("Your answers", h("p", { class: "section-note" }, "Each question was about the code shown beside it."), h("div", { class: "evidence" }, r.evidence.map((e, i) => VB.evidenceSheet(e, i, "you")))),
