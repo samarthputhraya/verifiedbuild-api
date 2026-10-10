@@ -2,7 +2,7 @@
 // VerifiedBuild recruiter dashboard. Plain JavaScript, no build step, served by the API itself.
 // Shared components live in /common.js (the VB object).
 
-const { h, enc, chip, icon, shape, button, api: callApi, githubUser, levelOf, ago, TAGS, TAG_NAME, RESULT_LABEL, pct, repoName } = VB;
+const { h, enc, chip, icon, shape, button, api: callApi, levelOf, ago, TAGS, TAG_NAME, pct } = VB;
 const POLL_MS = 5000;
 const KEY = "vb_admin_key";
 const session = VB.store(window.sessionStorage);
@@ -86,7 +86,7 @@ function showSignin(message) {
       }
     },
   },
-    shape("cookie9", 56, "secondary", icon("lock")),
+    VB.seal({ empty: true, size: 72, seed: "recruiter", center: icon("lock") }),
     h("div", { class: "fields" },
       h("h1", { class: "headline-m" }, "Recruiter sign-in"),
       h("p", { class: "body-m var" }, "Enter the passcode from the VerifiedBuild team to see who applied to your internships, ranked by the skills they verified.")),
@@ -166,13 +166,13 @@ function candidateItem(c, listingId, { isNew, selected, onSelect }) {
     onclick: (ev) => { if (onSelect && wide.matches) { ev.preventDefault(); onSelect(c.student_id); } },
   },
     h("span", { class: "rank", "aria-label": `Rank ${c.rank}` }, String(c.rank)),
-    VB.avatar(c.github_username),
+    VB.seal({ skills: c.skills, seed: c.github_username, size: 52, center: VB.avatar(c.github_username) }),
     h("div", { class: "li-main" },
       h("div", { class: "title-m" }, c.name),
       h("div", { class: "li-meta" }, h("span", {}, c.college), h("span", {}, `Applied ${ago(c.applied_at)}`)),
-      h("div", { class: "mini-skills" }, skills.map(([tag, name]) => chip(`${name} ${c.skills[tag]}`, levelOf(c.skills[tag]))),
+      h("div", { class: "mini-skills badges" }, skills.map(([tag, name]) => VB.badge(name.toLowerCase(), String(c.skills[tag]), levelOf(c.skills[tag]))),
         (c.hackathons || []).length ? chip(`${c.hackathons.length} verified hackathon${c.hackathons.length > 1 ? "s" : ""}`, "tertiary", "emoji_events") : null)),
-    VB.ring(c.match, { size: 52, stroke: 5, label: `${c.match}% match`, children: h("span", { class: "label-l" }, `${c.match}%`) }));
+    h("span", { class: "cand-match", "aria-label": `${c.match}% match` }, h("span", { class: "pct" }, `${c.match}%`), h("span", { class: "lbl" }, "match")));
 }
 
 async function downloadCsv(listingId, btn) {
@@ -200,6 +200,8 @@ async function showShortlist(token, listingId, selectedId) {
   let lastJson = "";
   let selected = selectedId;
   let sl = null;
+  // The full listing (with its skill weights), so each match can show its formula
+  const full = await api("/api/listings").then((x) => x.listings.find((l) => l.id === listingId)).catch(() => null);
   const listEl = h("div", { class: "list split-list" });
   const detail = h("div", { class: "split-detail" });
   const select = async (id) => {
@@ -209,7 +211,7 @@ async function showShortlist(token, listingId, selectedId) {
     detail.replaceChildren(VB.loadingView("Loading report…"));
     try {
       const r = await api(`/api/report/${enc(id)}`);
-      if (token === viewToken && selected === id) detail.replaceChildren(...reportNodes(r, sl.listing));
+      if (token === viewToken && selected === id) detail.replaceChildren(...reportNodes(r, full || sl.listing));
     } catch (e) { detail.replaceChildren(VB.banner(e.message)); }
   };
   const drawList = (fresh) => listEl.replaceChildren(...sl.candidates.map((c) => candidateItem(c, listingId, { isNew: fresh.has(c.student_id), selected: wide.matches && c.student_id === selected, onSelect: select })));
@@ -236,7 +238,8 @@ async function showShortlist(token, listingId, selectedId) {
           h("p", { class: "body-m" }, "Students appear here the moment they apply and agree to share their report. This page updates by itself.")))));
     }
     drawList(fresh);
-    if (wide.matches && (!selected || !ids.includes(selected))) select(ids[0]);
+    // After a reload the URL already names a candidate, but the detail pane is still empty
+    if (wide.matches && (!selected || !ids.includes(selected) || !detail.firstChild)) select(ids.includes(selected) ? selected : ids[0]);
     paint(token,
       head(sl.listing.title, `${sl.listing.venture}. ${VB.count(sl.candidates.length, "applicant")}, ranked by match on verified skills and verified hackathons, then by overall score.`, ["#/", "All internships"], csv),
       h("div", { class: "split section" }, listEl, wide.matches ? detail : null));
@@ -248,30 +251,20 @@ async function showShortlist(token, listingId, selectedId) {
 // ---------- One candidate's report ----------
 
 function reportNodes(r, listing) {
-  const repos = [...new Set(r.evidence.map((e) => e.repo_full_name))];
-  const nodes = [
-    h("div", { class: "passport" },
-      h("div", { class: "passport-who" },
-        h("div", { class: "passport-id" }, VB.avatar(r.student.github_username, "lg"),
-          h("div", {}, h("h1", { class: "headline-m" }, r.student.name),
-            h("div", { class: "li-meta body-m" }, h("span", {}, r.student.college),
-              h("a", { href: githubUser(r.student.github_username), target: "_blank", rel: "noopener noreferrer" }, `@${r.student.github_username}`)))),
-        h("div", { class: "chips" }, r.status === "done" ? chip("Verified by viva", "primary", "verified") : null, repos.map((x) => chip(repoName(x), "fact", "code")))),
-      r.status === "done" ? VB.scoreBadge(r.overall, 120) : null),
-  ];
+  const nodes = [VB.credential(r, "them")];
   if (r.status !== "done") return nodes.concat(h("div", { class: "section" }, VB.banner("This student hasn't finished a viva yet, so there are no scores to show.", { kind: "info", iconName: "info" })));
   const forThis = listing ? r.matches.find((m) => m.listing_id === listing.id) : null;
-  if (forThis) nodes.push(h("div", { class: "section" }, VB.matchCard(forThis, listing, { top: true })));
+  if (forThis) nodes.push(h("div", { class: "section" }, VB.matchCard(forThis, listing, { top: true, report: r })));
   nodes.push(
     section("Verified skills", "From their answers. 70 and up is strong, 40 to 69 partial.", VB.skillStamps(r.skills)),
-    section("Claimed and shown", "Only skills shown in the viva count toward matches.", VB.claimsList(r.claimed_vs_verified, "them")));
+    section("Resume → viva", "+ was shown in the viva without being claimed. − is on the resume but wasn't shown here. Only shown skills count toward matches.", VB.claimsList(r.claimed_vs_verified, "them")));
   if (r.hackathons.length) nodes.push(section("Hackathons", "Verified when the student finishes a viva on its repo. On team repos the questions are about the files they changed.", VB.hackathonList(r.hackathons, "them")));
   nodes.push(section("Answers", "Each question was about the code shown beside it.", h("div", { class: "evidence" }, r.evidence.map((e, i) => VB.evidenceSheet(e, i, "them")))));
   if (r.build_history) nodes.push(section("How the repo was built", "Facts from GitHub. They don't change the score.", VB.buildHistory(r.build_history, "them")));
   nodes.push(section("Matches across all internships", null, h("div", { class: "list" }, r.matches.map((m) => h("div", { class: "li" },
     VB.ring(m.match, { size: 48, stroke: 4, label: `${m.match}% match`, children: h("span", { class: "label-m" }, `${m.match}%`) }),
     h("div", { class: "li-main" }, h("div", { class: "title-m" }, `${m.title}, ${m.venture}`), h("div", { class: "body-s var" }, m.why)),
-    h("span", { class: "li-trail" }, m.applied ? chip("Applied", "strong", "check_circle") : null))))));
+    h("span", { class: "li-trail" }, m.applied ? VB.stampApplied(false) : null))))));
   return nodes;
 }
 
