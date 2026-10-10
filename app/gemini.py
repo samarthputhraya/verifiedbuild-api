@@ -30,7 +30,7 @@ _client: genai.Client | None = None
 _pool = ThreadPoolExecutor(max_workers=32, thread_name_prefix="gemini")  # a slow loser holds a worker until its timeout
 
 # Seconds before a duplicate request is sent (medians in our tests: transcription 2.2 s, scoring 3 s, questions 10 s;
-# a resume took 5 to 20 s)
+# one resume read took over 20 s)
 HEDGE_TRANSCRIBE_S = 6
 HEDGE_SCORE_S = 8
 HEDGE_QUESTIONS_S = 25
