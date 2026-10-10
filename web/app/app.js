@@ -343,20 +343,21 @@ function Repos() {
 
 function Analyzing({ repo }) {
   const [st, setSt] = useState({ error: null, result: null });
+  const [attempt, setAttempt] = useState(0);
   const [tick, setTick] = useState(0);
   const started = useRef(Date.now());
-  const ran = useRef(false);
   useEffect(() => {
     const t = setInterval(() => setTick((x) => x + 1), 1000);
     return () => clearInterval(t);
   }, []);
   useEffect(() => {
-    if (ran.current) return;
-    ran.current = true;
+    let alive = true;
+    started.current = Date.now();
     api("/api/analyze", { method: "POST", body: { student_id: me.id(), repo_full_name: repo } })
-      .then((a) => { tab.set("vb_last_analysis", JSON.stringify(a)); tab.set("vb_session_id", a.session_id); setSt({ error: null, result: a }); setTimeout(() => go("#/found", true), 900); })
-      .catch((error) => setSt({ error, result: null }));
-  }, [repo]);
+      .then((a) => { if (!alive) return; tab.set("vb_last_analysis", JSON.stringify(a)); tab.set("vb_session_id", a.session_id); setSt({ error: null, result: a }); setTimeout(() => go("#/found", true), 900); })
+      .catch((error) => { if (alive) setSt({ error, result: null }); });
+    return () => { alive = false; };
+  }, [repo, attempt]);
   const elapsed = (Date.now() - started.current) / 1000;
   const a = st.result;
   const steps = [
@@ -364,7 +365,7 @@ function Analyzing({ repo }) {
     ["Find the skills it shows", a ? (a.repo_skills.map((x) => TAG_NAME[x.tag] || x.tag).join(", ") || "None found") : "Rank files by how often other files import them", a ? "done" : elapsed > 6 ? "run" : "todo"],
     ["Write 5 questions", a ? `${count(a.questions.length, "question")} about real lines in your files` : "Each about real lines in your files", a ? "done" : elapsed > 10 ? "run" : "todo"],
   ];
-  if (st.error) return html`<div class="fade"><${PageHead} title=${`We couldn't start the viva on ${repoName(repo)}`} /><div class="stack"><${Banner}>${st.error.message}<//><div class="actions"><${Button} icon="refresh" onClick=${() => { ran.current = false; started.current = Date.now(); setSt({ error: null, result: null }); }}>Try again<//><${Button} kind="ghost" href="#/repos">Pick another repo<//></div></div></div>`;
+  if (st.error) return html`<div class="fade"><${PageHead} title=${`We couldn't start the viva on ${repoName(repo)}`} /><div class="stack"><${Banner}>${st.error.message}<//><div class="actions"><${Button} icon="refresh" onClick=${() => { setSt({ error: null, result: null }); setAttempt((x) => x + 1); }}>Try again<//><${Button} kind="ghost" href="#/repos">Pick another repo<//></div></div></div>`;
   return html`<div class="fade" role="status" aria-label=${`Reading ${repo}`}>
     <${PageHead} title=${`Reading ${repoName(repo)}`} lead="This usually takes 15 to 30 seconds. Keep this page open." />
     <div class="card">
