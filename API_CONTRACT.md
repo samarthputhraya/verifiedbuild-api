@@ -1,4 +1,4 @@
-# VerifiedBuild API contract (v1.1)
+# Proofolio API contract (v1.1)
 
 **v1.1 (2026-10-10), additive: no v1 field was removed or renamed.**
 - Hackathon entries: new endpoints in 8b. A viva on a hackathon's repo verifies it.

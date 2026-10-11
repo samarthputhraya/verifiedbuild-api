@@ -1,4 +1,4 @@
--- VerifiedBuild schema. Paste into the Supabase SQL editor and run once. Safe to re-run.
+-- Proofolio schema. Paste into the Supabase SQL editor and run once. Safe to re-run.
 -- Listings are not seeded here: the API loads seed/listings.json into `listings` on every start.
 
 create table if not exists students (

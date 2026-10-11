@@ -1,4 +1,4 @@
-"""VerifiedBuild API: app setup and routes only. The logic lives in the other modules."""
+"""Proofolio API: app setup and routes only. The logic lives in the other modules."""
 
 import hmac
 import logging
@@ -39,7 +39,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="VerifiedBuild API", version="v1", lifespan=lifespan)
+app = FastAPI(title="Proofolio API", version="v1", lifespan=lifespan)
 errors.register(app)
 
 
