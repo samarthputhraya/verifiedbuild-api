@@ -39,7 +39,7 @@ Prepare before going on stage:
 - **Phone 1 (mirrored to the projector):** the student web app, installed with Chrome's "Add to Home screen" so it opens full screen like an app. Sign up a second student up to the last step, but don't press "Create my profile". That student's repo must be public.
   - Show the Proofolio Android app for a few seconds, signed in, to say it exists on Android too and uses the same API. Don't tap Admin, Recruiter, Explore demo or the Skip buttons on it: the first three open sample data, and Skip doesn't reach the server.
 - **Phone 2, or Phone 1 after the live part:** signed in as [Name], with a finished viva and a verified hackathon, and **not yet applied to Promtal**.
-- **Laptop:** the recruiter dashboard at `https://verifiedbuild-api-215071922486.asia-south1.run.app/recruiter/`, signed in and open on the Promtal shortlist, with 2–3 volunteers who already applied.
+- **Laptop:** the recruiter dashboard at `https://verifiedbuild-api-215071922486.asia-south1.run.app/recruiter/`, signed in and open on the Promtal shortlist. Three labelled sample applicants are already on it (Arjun, Meera and Riya, each marked "(sample)"), plus any volunteers.
 - The backup video, ready to play.
 
 | Step | Click | Say |
@@ -73,7 +73,7 @@ Then keep narrating with the same lines. Before going on stage, set `DEMO_MODE=c
 Coding tests are generic puzzles, and AI can solve those too. We ask about the project the student is showing you, the one on their resume, so the result tells you about that claim directly.
 
 **What's real and what's mocked?**
-Everything in the flow is live: GitHub reading, question writing, voice transcription, scoring, matching and the shortlist. The six internship listings are demo data, and there's a saved-run fallback for the stage, which is off by default.
+Everything in the flow is live: GitHub reading, question writing, voice transcription, scoring, matching and the shortlist. The six internship listings are demo data. The three applicants marked "(sample)" are sample profiles on our own repos: the questions and scores are real, but AI wrote the answers, so the dashboard isn't empty. There's also a saved-run fallback for the stage, which is off by default.
 
 **Who pays, and why would they switch?**
 [Team decision. Suggested: startups and HR-tech platforms like Promtal pay per verified shortlist, because it cuts screening time; or college placement cells pay per batch.] One viva costs us about [₹ from `python -m scripts.stats`] in AI, so [price] leaves a wide margin.
@@ -115,7 +115,7 @@ Before the final, get the volunteer numbers with [docs/volunteers.md](volunteers
 | Same answer, scored 5 times | never more than 1 point apart, out of 10 |
 | Vague answer / "give me 10" answer | 1 / 0 out of 10 |
 | Score gap: repos the owner built vs didn't build | [from `scripts.stats --labels`] |
-| Students verified tonight | [N], median score [N] |
+| Students verified tonight | [N], median score [N] (`scripts.stats` counts the 3 samples too: subtract them, or don't use this row) |
 | Claimed a skill, then couldn't show it | [N]% |
 | Showed a skill they didn't claim | [N]% |
 | AI cost per viva | [from `scripts.stats`. Our 2 test vivas had a median of $0.039 at $0.75 / $3.75 per 1M tokens, a third-party price; check Google's Vertex rate card first] |

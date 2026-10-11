@@ -93,6 +93,8 @@ powershell -File scripts\deploy.ps1     # writes env.yaml from .env, then deploy
 
 Run [supabase/schema.sql](supabase/schema.sql) once in the Supabase SQL editor. Listings load from [seed/listings.json](seed/listings.json) every time the API starts.
 
+**Sample data:** the live database holds three labelled sample students ("Riya (sample)", "Arjun (sample)", "Meera (sample)", college "Sample profile, AI-written answers") on our own public repos, each applied to Promtal. Their questions and scores are real; their answers were written by AI. They are there so the recruiter dashboard isn't empty in the demo.
+
 **Demo safety net:** with `DEMO_MODE=cached`, repos saved in `seed/demo_cache/` (`python -m app.demo_cache <session_id>`) skip the analyze step, and a failed live evaluation falls back to the saved one. Live is the default. The internship listings are demo data.
 
 ## AI tools and APIs used
