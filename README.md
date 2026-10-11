@@ -105,3 +105,4 @@ Run [supabase/schema.sql](supabase/schema.sql) once in the Supabase SQL editor. 
 - **GitHub REST and GraphQL APIs:** reading the student's repo and its commit history
 - **Supabase:** Postgres database
 - **Google Cloud Run:** hosting
+- **Demo video** (made with Claude Code, source in [video/](video/)): footage recorded from the live app with Playwright and edited in Remotion. The narration is an AI voice (Gemini 2.5 Pro text-to-speech), the sample student's spoken Hinglish answer is an AI voice too (its words written by Gemini), and the music is AI-generated (Lyria 2 on Vertex AI).
