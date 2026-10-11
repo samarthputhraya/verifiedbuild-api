@@ -1,4 +1,4 @@
-// VerifiedBuild recruiter dashboard: sign in → internships → ranked applicants → one candidate's report.
+// Proofolio recruiter dashboard: sign in → internships → ranked applicants → one candidate's report.
 // React-style components on Preact (htm, no build step). Shared pieces live in /ui.js.
 
 import {
@@ -60,7 +60,7 @@ function Shell({ signedIn, onSignOut, wide, children }) {
   const live = useLive();
   return html`
     <header class="topbar">
-      <a class="brand" href="#/"><${Mark} />VerifiedBuild <span class="sub">for recruiters</span></a>
+      <a class="brand" href="#/"><${Mark} />Proofolio <span class="sub">for recruiters</span></a>
       <span class="spacer"></span>
       ${live ? html`<${Tag} kind=${live === "ok" ? "ok live" : ""}>${live === "ok" ? "Updating live" : "Reconnecting"}<//>` : null}
       ${signedIn ? html`<button class="icon-btn" type="button" aria-label="Sign out" title="Sign out" onClick=${onSignOut}><${Icon} name="logout" /></button>` : null}
@@ -85,7 +85,7 @@ function SignIn({ message, onDone }) {
     finally { setBusy(false); }
   }
   return html`<form class="signin fade" novalidate onSubmit=${submit}>
-    <div><h1 class="h1">Recruiter sign-in</h1><p class="small muted" style="margin-top:0.375rem">Enter the passcode from the VerifiedBuild team to see who applied to your internships, ranked by the skills they verified.</p></div>
+    <div><h1 class="h1">Recruiter sign-in</h1><p class="small muted" style="margin-top:0.375rem">Enter the passcode from the Proofolio team to see who applied to your internships, ranked by the skills they verified.</p></div>
     <${Field} id="passcode" label="Passcode" type="password" value=${pass} onInput=${(e) => { setPass(e.target.value); setErr(""); }} state=${err ? "error" : ""} hint=${err} attrs=${{ autocomplete: "current-password", autofocus: true }} />
     <${Button} type="submit" size="lg" busy=${busy} block>Sign in<//>
   </form>`;

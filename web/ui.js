@@ -52,7 +52,7 @@ export async function api(path, { method = "GET", body, headers = {}, raw = fals
   const opts = { method, headers: { Accept: raw ? "text/csv" : "application/json", ...headers }, cache: "no-store" };
   if (body !== undefined) { opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body); }
   let res;
-  try { res = await fetch(path, opts); } catch { throw new ApiError("NETWORK", "Can't reach VerifiedBuild. Check your connection and try again.", 0); }
+  try { res = await fetch(path, opts); } catch { throw new ApiError("NETWORK", "Can't reach Proofolio. Check your connection and try again.", 0); }
   if (!res.ok) {
     let data = null;
     try { data = await res.json(); } catch { /* not JSON */ }

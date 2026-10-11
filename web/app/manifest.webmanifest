@@ -1,6 +1,6 @@
 {
-  "name": "VerifiedBuild",
-  "short_name": "VerifiedBuild",
+  "name": "Proofolio",
+  "short_name": "Proofolio",
   "description": "Answer 5 questions about your own GitHub code and get matched to internships on the skills you show.",
   "id": "/app/",
   "start_url": "/app/",

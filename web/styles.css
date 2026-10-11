@@ -1,4 +1,4 @@
-/* VerifiedBuild web. A plain product UI: one typeface, a neutral palette with one blue, an 8 px grid,
+/* Proofolio web. A plain product UI: one typeface, a neutral palette with one blue, an 8 px grid,
    borders instead of shadows, and motion only where it shows a change. Light and dark.
    Type: Inter (UI) and JetBrains Mono (code), both OFL, served from /fonts. */
 
@@ -416,6 +416,7 @@ dialog[open] { animation: dialog-in 140ms var(--ease); }
 
 /* ---------- Small screens ---------- */
 @media (max-width: 599px) {
+  .hide-sm { display: none; }
   .h1 { font-size: 1.375rem; line-height: 1.75rem; }
   .display { font-size: 2rem; line-height: 2.25rem; }
   .fields.two { grid-template-columns: 1fr; }

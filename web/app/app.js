@@ -1,4 +1,4 @@
-// VerifiedBuild student app: sign up → pick a repo → what we found → 5 questions (voice or text) → report → apply.
+// Proofolio student app: sign up → pick a repo → what we found → 5 questions (voice or text) → report → apply.
 // React-style components on Preact (htm, no build step). Shared pieces live in /ui.js.
 
 import {
@@ -54,7 +54,7 @@ function Shell({ page, focus, onSignOut, children }) {
   const nav = (cls) => NAV.map(([id, label, icon]) => html`<a class=${cls} href=${`#/${id}`} aria-current=${id === page ? "page" : null}><${Icon} name=${icon} size=${cls === "tab" ? "lg" : ""} /><span>${label}</span></a>`);
   return html`
     ${focus ? null : html`<header class="topbar">
-      <a class="brand" href="#/home"><${Mark} />VerifiedBuild</a>
+      <a class="brand" href="#/home"><${Mark} />Proofolio</a>
       <span class="spacer"></span>
       ${me.id() ? html`<button class="icon-btn" type="button" aria-label="Account" title="Account" onClick=${onSignOut}><${Avatar} username=${me.github()} size="sm" /></button>` : null}
     </header>`}
@@ -606,7 +606,7 @@ function Done({ onLost }) {
 
 const justApplied = new Set();
 async function apply(m, reload) {
-  const ok = await confirm({ title: `Apply to ${m.venture}?`, text: `${m.title}. Applying shares your VerifiedBuild report (scores, answers, code evidence and hackathons) with ${m.venture} for this role. Nobody else sees it.`, confirmText: "Apply", consent: `I agree to share my report with ${m.venture}.` });
+  const ok = await confirm({ title: `Apply to ${m.venture}?`, text: `${m.title}. Applying shares your Proofolio report (scores, answers, code evidence and hackathons) with ${m.venture} for this role. Nobody else sees it.`, confirmText: "Apply", consent: `I agree to share my report with ${m.venture}.` });
   if (!ok) return;
   try {
     await api("/api/apply", { method: "POST", body: { student_id: me.id(), listing_id: m.listing_id, share_consent: true } });
