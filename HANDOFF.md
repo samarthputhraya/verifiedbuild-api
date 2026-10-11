@@ -1,86 +1,43 @@
-# Handoff - 2026-10-11 07:05 IST, written by Claude session
+# Handoff - 2026-10-11 07:20 IST, written by Claude session
 
 ## Goal (one line)
-Proofolio: 5-question viva on a student's own repo → verified skill profile → internship match → recruiter shortlist.
+Proofolio (Tri-City AI-Thon 2026, Promtal track): a 5-question viva on a student's own repo → verified skill profile → internship match → recruiter shortlist.
 
 ## Demo path (the exact clicks a judge will see)
-Phone 1: sign up → pick repo → analyze (~15 s) → answer question 1 by voice. Phone 2: a finished report (claimed vs verified, evidence, verified hackathon, matches) → apply with consent. Laptop: the Promtal shortlist on `/recruiter/`, where the student appears within 5 s. Script and lines: `docs/pitch.md`.
+Phone 1 (installed web app `/app/`): sign up → pick repo → analyze (~15 s) → answer question 1 by voice. Phone 2: a finished report → apply to Promtal with the consent tick. Laptop: `/recruiter/` Promtal shortlist, where the student lands within 5 s. Show Ayush's Android app for a few seconds only (never tap Admin, Recruiter, Explore demo or Skip). Lines: `docs/pitch.md`.
 
 ## Works now (verified, with how it was verified)
-- Live on Cloud Run, revision 00018 (Supabase + Vertex AI). `/api/health` returns `v1.1`. Earlier looks, if ever needed: 00011 (Material 3), 00013 (build run).
-- **Web rebuilt as a plain product UI on React-style components (11 Oct, 03:40):** Preact + htm as ES modules (no build step), Inter, one blue, borders not shadows, skeleton/empty/error states, light and dark. SAM asked for a professional, Fortune-500-style product look and nothing decorative, after rejecting the Material 3, seal and build-run designs.
-  - Verified locally with real GitHub and Gemini: 4-step sign-up with the live GitHub check, home, repo list, analyzing checklist, what we found, the viva with a typed answer, a follow-up, 9 answers to done, the report, apply with the consent box, a spoken answer through the real recorder (bars moved, transcript came back), the recruiter listings, shortlist with the detail pane, candidate page, phone and desktop widths with no sideways scroll, dark mode. Zero console errors throughout.
-- **Earlier Material 3 version (18:00), the same flows:**
-  - Verified locally in a browser: the full student flow (4-step sign-up, live GitHub check, the letter PDF gives the right message, analyze, typed answers, follow-up, a spoken answer through the real recorder, done, report, apply with consent).
-  - Also checked locally: phone and desktop layouts, dark mode, and recruiter list-detail with a second applicant arriving live.
-  - Live: every page, font, icon and the manifest return 200, the GitHub avatar loads under the CSP, and there are no console errors.
-  - Pages: `/` (landing), `/app/` (student web app), `/recruiter/` (dashboard, needs ADMIN_KEY), `/docs`.
-  - All return 200 (curl), and API 404s are JSON.
-- `python -m pytest`: 22 pass. They cover the full flow, hackathons, team repos, multi-viva reports, voice, errors, web pages, cache headers and hedged Gemini calls.
-- **Prod, through the student web app (16:14 IST):**
-  - Sign-up → kavach analyzed (6 files, 4 skills found) → 5 typed answers.
-  - A vague answer got a follow-up. A Hinglish answer scored 10/10.
-  - The report, matches (EdTech AI 60%, Promtal 45%) and build history were all correct. No console errors.
-  - Then, by script against prod (`X-Admin-Key` read from `.env`): apply without consent → refused; with consent → 201.
-  - The student appeared on the Promtal shortlist and in the CSV, and a wrong admin key got 401.
-- **Prod, full spoken viva by script (16:46 IST, revision 00009):** analyze took 14.0 s, then 10 voice answers (5 questions plus 5 follow-ups).
-  - Median 5.2 s per answer, slowest 9.4 s. The report finished, and the test data was deleted afterwards.
-- **Prod, Android:** the Kotlin harness (`clients/android/harness`) passed against v1.1.
-- **Local, student web app:**
-  - Full flow including a spoken answer: MediaRecorder with a fake mic fed TTS audio, transcribed correctly.
-  - Also checked: a pasted-text fact, resume after reload, apply with the consent gate.
-  - The student then appeared on the recruiter shortlist.
-- **Local, recruiter dashboard:**
-  - Sign-in and wrong passcode, listings, live arrival highlight, candidate report with code beside each answer.
-  - CSV with `verified_hackathons`, mobile and dark mode.
-- SAM's own runs on prod in the new design (18:06): resume sign-up, analyze, 10 answers including voice, done; both reports read back with 200 at 23:45.
-- Supabase holds no test data: SAM's 2 test profiles were deleted at 23:50, and every table is at 0 rows except the 6 listings (row counts checked).
-- Not yet clicked through on prod in the new design: apply on a phone → the student appears on `/recruiter/`. Verified locally, and the API part on prod at 16:14.
+- Live: https://verifiedbuild-api-215071922486.asia-south1.run.app, Cloud Run revision 00018, `/api/health` → v1.1. Live files matched the repo byte for byte after the 07:00 deploy. `python -m pytest`: 22 pass.
+- Web (student app, recruiter dashboard, landing) rebuilt 03:40 as a plain product UI on Preact + htm (no build step). Full flow incl. voice, follow-up, apply, live shortlist arrival and CSV verified locally with real GitHub/Gemini, and recorded from the live site at 06:45 for the video.
+- Renamed VerifiedBuild → Proofolio (05:40) in all UI, docs, API title, schema and contract. Service name and URL stay `verifiedbuild-api`.
+- Android app (`trulyayush/KITSW`, Ayush): uses only our API since his 00:22 commit; its API layer is identical to `clients/android/`, which passed 79/79 live checks (04:45). His PR #1 (recruiter link, "We heard" note) merged 05:27.
+- Live database (06:50): 6 listings and 4 labelled samples (Riya, Arjun, Meera, Kavya, each "(sample)", college "Sample profile…"), all applied to Promtal. No other data. Pitch and README say they're samples with AI-written answers.
+- Demo video: `C:\Users\samar\OneDrive\Documents\Proofolio-demo.mp4`, 2:33, 1080p30, -16 LUFS, narration/soundtrack checked by transcription. Source in `video/`; assets to re-render in `C:\Users\samar\OneDrive\Documents\proofolio-work\` (see its README).
 
 ## Broken / in progress
-- Nothing known broken.
-- Gemini's speed varies. On prod we saw analyze take 12 s and 30 s for the same repo, and one scoring took 19 s locally. Hence the 40 s / 25 s fallback rule in `docs/pitch.md`.
-- Unverified: `scripts/stats.py` numbers on real volunteers. Only 2 test vivas so far, at a median of $0.039 per viva, priced with third-party token rates.
-- **Bug sweep (05:00):** backend pyflakes clean, 22 tests pass, `scripts.stats` runs on live data. Web: fixed "Try again" after a failed repo read (it did nothing), the recruiter "Updating live" tag (never shown), and the install icons/manifest colours. Checked on a local server: stale profile → sign-up with the message, retry sends a second request, live tag on both recruiter pages and gone after sign-out.
-- **Android app (Ayush, `trulyayush/KITSW`), re-checked 04:45:** his 00:22 commit rewired it to our API and removed the direct Gemini/GitHub calls, the built-in key, the fake database and the invented text. Its API layer is byte-identical to `clients/android/` here; that code passed 79/79 checks against the live API (full viva, voice as m4a, follow-ups, hackathon, apply, resume). Not checked: whether the Compose screens compile; no Gradle wrapper in the repo and no Android SDK on this machine. PR #1 on his repo (recruiter link, "We heard" note) was merged by SAM at 05:27; Ayush must make the same two edits in AI Studio so his next push doesn't drop them. Unused `firebase.ai` dependency and the 3D background remain.
-- **Live database at 05:50:** all test data deleted on SAM's request (6 test profiles, their vivas and applications). It now holds only the 6 listings and 3 labelled sample students on SAM's public repos (Riya on kavach, Arjun on Modelpin, Meera on aarogya-grid), real questions and scoring, AI-written answers, each applied to Promtal (shortlist: Arjun 51%, Meera 47%, Riya 38%). Script: scratchpad `live_samples.py`. `scripts.stats` counts them, so don't quote its numbers as volunteers.
-
-- **Renamed to Proofolio (05:40)** on SAM's call, matching Ayush's 04:43 Android rebrand: web app, dashboard, landing (new screenshots), API title, schema, contract and docs. The Cloud Run service and URL keep `verifiedbuild-api` (the Android app has the URL built in); `clients/android/` stays identical to his API layer. Ayush's 04:43 commit also added a labelled demo mode with sample data (Admin, Recruiter, Explore demo) and Skip buttons that don't reach the server; SAM chose to keep them and avoid them on camera.
-
-- **Demo video done (07:05):** `C:\Users\samar\OneDrive\Documents\Proofolio-demo.mp4`, 2:33, 1080p30, -16 LUFS. Recorded from the live app (a 4th labelled sample, "Kavya (sample)", now on the Promtal shortlist), Remotion edit, Gemini 2.5 Pro TTS narration, Lyria music; source and method in `video/`. No Android footage yet: drop a clip at `movie/public/android.mp4`, set `android: true` in the timeline, re-render.
-- **Bug fixed (06:30):** Stop hung forever if the mic stream ended before it was tapped (e.g. a Bluetooth mic dropping). Verified locally both ways; revision 00018.
+- Android footage missing from the video (no SDK here). Needs a 10–15 s screen recording from Ayush; then add `android.mp4` + `"android": true` and re-render (proofolio-work README).
+- Ayush must repeat PR #1's two edits in AI Studio, or his next push may drop them (unverified how AI Studio sync handles remote commits).
+- Ayush's 04:43 commit added a demo mode with invented sample people and Skip buttons that never reach the server (skip leaves the viva unfinished). SAM chose to keep them; don't use them on camera.
+- Not checked: whether Ayush's Compose screens compile (no Gradle wrapper, no SDK).
+- `docs/pitch.md` has 24 `[bracket]` blanks (persona, numbers, who pays, 30-day plan, why us). Voice pronunciation of "Proofolio" in the video is unconfirmed by ear.
 
 ## Next 3 steps (concrete, in order)
-0. Agreed plan (SAM, 05:00): no new features. Record the demo video on the live site, then write the PPT, then merge both repos into one and submit (`git subtree add --prefix=backend ... main` and `--prefix=frontend ...`, see CLAUDE.md).
-1. Pick the persona and fill every `[bracket]` in `docs/pitch.md` with real facts.
-   - Give the persona a finished viva plus a verified hackathon.
-   - Run `python -m app.demo_cache <session_id>` for their repo.
-   - Record the backup video.
-2. Volunteers tonight, following `docs/volunteers.md` (5 built + 5 not built).
-   - Put their repos in `seed/labelled_set.json`, then run `python -m scripts.stats --labels seed/labelled_set.json`.
-   - Copy the numbers into pitch section 6.
-3. 2–3 volunteers apply to Promtal so the dashboard isn't empty. Then 3 timed rehearsals, including one fallback to the video.
+1. Write the PPT from `docs/pitch.md` and the measured numbers (README "What we measured"). Don't quote `scripts.stats` as volunteers: it counts the 4 samples.
+2. If Ayush sends the Android clip, add the scene and re-render the video.
+3. Merge both repos into the organiser's repo with history (`git subtree add --prefix=backend <api-repo> main`, `--prefix=frontend https://github.com/trulyayush/KITSW main`) and submit; both repos are private now, make public only if required.
 
 ## Decisions made (and why, one line each)
-- Gemini on Vertex as the Cloud Run identity: the Developer API key returned 402 (no prepaid credits).
-- `gemini-3.8-flash` at thinking LOW for questions and scoring. `gemini-3.5-flash` transcribes voice, because 3.8-flash hung on audio.
-- Web pages are plain HTML/JS with no build step, served by the API: one deploy, same origin, CSP `'self'`.
-- The student web app exists so judges can try it from a QR code (`docs/qr-student-app.svg`), and as a fallback if the Android build isn't ready.
-- Hackathons count only after a viva on their repo. On team repos, questions cover the files the student changed.
-- Match = 60% verified skills + 25% interests + 15% best verified hackathon. No AI in the formula.
-- Design (11 Oct, 03:40): a plain, professional product UI, like a Fortune-500 product page, with no theme or decoration (SAM's call after three themed designs). React-style components on Preact + htm with no build step, so one deploy ships API and pages and nothing can break at 4 AM.
-- Web files are sent with `Cache-Control: no-cache`, so phones never mix old and new JS after a deploy.
-- Slow Gemini calls are hedged: the same request is sent again after 6 s (transcription), 8 s (scoring) or 25 s (questions), and the first answer wins.
-- Pitch claims use today's measurements: each of 6 test answers was scored 5 times and never moved by more than 1 point.
-  - Typed Hinglish, romanised Hindi and Telugu-English answers scored 9–10. Spoken non-English answers are untested.
+- No new features after 05:00 (SAM): only bugs, data, video, PPT, submission.
+- Design: plain professional UI; SAM rejected every themed concept (memory file `ui-taste-professional`).
+- Samples instead of strangers' repos: the API only verifies a student's own repos, and fake profiles in real people's names were refused.
+- Match = 60% verified skills + 25% interests + 15% best verified hackathon; no AI in the formula.
+- Gemini on Vertex (3.8-flash for questions/scoring at thinking LOW, 3.5-flash for transcription); hedged retries after 6/8/25 s.
 
 ## Gotchas
-- `ADMIN_KEY` is in `.env`. Share it with Ayush privately, never in the repo or chat logs.
-- `GITHUB_TOKEN` is SAM's `gh` token, which has repo scope. Swap it for a fine-grained public-read token. Private repos are refused in code anyway.
-- `scripts/deploy.ps1` deploys the last commit, not uncommitted edits.
-- Running locally needs `gcloud auth application-default login` (Vertex) and ffmpeg on PATH.
-- Supabase `sb_secret_` keys go in the `apikey` header only.
-- The folder is still named `tricity`. Close VS Code, then `Rename-Item "$HOME\OneDrive\Documents\tricity" verifiedbuild-api`.
+- `ADMIN_KEY` lives in `.env`; scripts read it from there. Never print it or put it in a tool call; the local server uses "local-test".
+- `GITHUB_TOKEN` is SAM's classic `gh` token with repo scope; swap for a fine-grained public-read token.
+- `scripts/deploy.ps1` deploys the last commit. Tests need pytest (not in the global Python 3.12).
+- Bugs fixed today: retry after a failed repo read, recruiter live tag, landing top bar on phones, Stop hanging when the mic stream ends early.
 
 ## How to run
-`pip install -r requirements-dev.txt` → `copy .env.example .env` (fill it in) → `uvicorn app.main:app --reload --env-file .env` → http://127.0.0.1:8000/app/. Tests: `python -m pytest`. Deploy: `powershell -File scripts\deploy.ps1`.
+`pip install -r requirements-dev.txt` → `copy .env.example .env` (fill it) → `gcloud auth application-default login` → `uvicorn app.main:app --reload --env-file .env` → http://127.0.0.1:8000/app/. Tests: `python -m pytest`. Deploy: `powershell -File scripts\deploy.ps1`.
