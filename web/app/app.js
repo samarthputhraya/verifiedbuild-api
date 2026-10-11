@@ -449,13 +449,16 @@ const recorder = {
       this.quiet();
       const seconds = Math.round((Date.now() - this.startedAt) / 1000);
       clearTimeout(this.stopTimer);
-      media.onstop = async () => {
+      const finish = async () => {
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(chunks, { type: media.mimeType || this.mime || "audio/webm" });
         if (blob.size < 2000 || seconds < 1) return resolve(null);
         resolve({ base64: await readFileAsBase64(blob), mime: blob.type || "audio/webm", seconds });
       };
-      media.stop();
+      // If the microphone stream ended by itself (for example a Bluetooth mic disconnected), the recorder has
+      // already stopped and won't fire "stop" again, so finish with what it recorded.
+      if (media.state === "inactive") finish();
+      else { media.onstop = finish; media.stop(); }
     });
   },
   discard() {
@@ -463,8 +466,8 @@ const recorder = {
     clearTimeout(this.stopTimer);
     this.quiet();
     const stream = this.stream;
-    this.media.onstop = () => { stream.getTracks().forEach((t) => t.stop()); };
-    this.media.stop();
+    if (this.media.state === "inactive") stream.getTracks().forEach((t) => t.stop());
+    else { this.media.onstop = () => { stream.getTracks().forEach((t) => t.stop()); }; this.media.stop(); }
     this.media = null;
   },
 };
