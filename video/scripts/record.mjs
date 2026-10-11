@@ -13,7 +13,7 @@ const B = "https://verifiedbuild-api-215071922486.asia-south1.run.app";
 const PY = path.resolve(VIDEO, "..", "venv", "Scripts", "python.exe");
 const ENV = fs.readFileSync("C:/Users/samar/OneDrive/Documents/tricity/.env", "utf8");
 const ADMIN_KEY = (ENV.match(/^ADMIN_KEY=(.*)$/m) || [])[1].trim().replace(/^"|"$/g, "");
-const REPO = "kavach";
+const REPO = "Guru-Graph";
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT, { recursive: true });
 
@@ -65,6 +65,8 @@ const POINTER = (kind) => `(() => {
 async function tapEl(page, locator, opts = {}) {
   const el = typeof locator === "string" ? page.locator(locator).first() : locator;
   await el.scrollIntoViewIfNeeded();
+  // Keep the target clear of the fixed top and bottom bars, and let any re-render settle
+  if (opts.center !== false && await el.evaluate((e) => { const r = e.getBoundingClientRect(); const off = r.top < 90 || r.bottom > innerHeight - 110; if (off) e.scrollIntoView({ block: "center", behavior: "smooth" }); return off; })) await sleep(700);
   const box = await el.boundingBox();
   const x = box.x + box.width / 2, y = box.y + box.height / 2;
   await page.mouse.move(x, y, { steps: opts.steps || 12 });
@@ -104,6 +106,40 @@ await rp.reload();
 await rp.waitForSelector(".split-detail .h1", { timeout: 30000 });
 await rp.mouse.move(700, 600);
 
+// ---------- A labelled sample résumé (PDF), so sign-up shows Gemini reading claimed skills ----------
+const RESUME = path.join(OUT, "kavya-sample-resume.pdf");
+{
+  const p = await (await browser.newContext()).newPage();
+  await p.setContent(`<html><body style="font-family:Arial;padding:40px;color:#111">
+    <div style="color:#b00;font-weight:bold">SAMPLE RESUME, made for the Proofolio demo video</div>
+    <h1 style="margin:8px 0 0">Kavya (sample)</h1><div>B.Tech Computer Science, 3rd year · github.com/samarthputhraya</div>
+    <h3>Skills</h3><div>TypeScript, React, Next.js, Python, FastAPI, PostgreSQL, Docker, Machine Learning</div>
+    <h3>Projects</h3><div>GuruGraph: homework feedback app for teachers and students (ARGONYX 2026, Best UI/UX)</div>
+    <h3>Hackathons</h3><div>ARGONYX 2026, RV University: Best UI/UX award (team of 3)</div></body></html>`);
+  await p.pdf({ path: RESUME, format: "A4" });
+  await p.context().close();
+}
+
+// ---------- Landing page (desktop), read-only ----------
+{
+  const lctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 4 / 3, colorScheme: "light" });
+  await lctx.addInitScript(POINTER("mouse"));
+  const lp = await lctx.newPage();
+  await lp.goto(B + "/");
+  await lp.waitForLoadState("networkidle");
+  await lp.mouse.move(900, 300);
+  await sleep(600);
+  const lrec = await startRec(lp, "landing");
+  mark("landing");
+  await sleep(2500);
+  await smoothScroll(lp, 760, 50, 3600); await sleep(1800);
+  await smoothScroll(lp, 700, 50, 3400); await sleep(1800);
+  await smoothScroll(lp, 760, 50, 3600); await sleep(2200);
+  mark("landing_end");
+  await lrec.stop();
+  await lctx.close();
+}
+
 // ---------- Student phone ----------
 const sctx = await browser.newContext({
   viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: false, colorScheme: "light",
@@ -132,37 +168,63 @@ await sleep(700);
 mark("about");
 await typeIn(sp, "#name", "Kavya (sample)", 45);
 await typeIn(sp, "#email", "kavya.sample@example.com", 25);
-await typeIn(sp, "#college", "Sample profile", 40);
+await typeIn(sp, "#college", "Sample profile, AI-written answers", 30);
 await sleep(500);
 await tapEl(sp, "button:has-text('Continue')");
 await sleep(700);
 mark("interests");
-for (const t of ["AI", "SaaS", "HR-Tech"]) { await tapEl(sp, `button.chip:text-is("${t}")`); await sleep(250); }
+for (const t of ["AI", "EdTech", "SaaS", "HR-Tech"]) { await tapEl(sp, `button.chip:text-is("${t}")`); await sleep(250); }
 await sleep(500);
 await tapEl(sp, "button:has-text('Continue')");
 await sleep(700);
 mark("skills");
-for (const t of ["Python", "FastAPI", "React"]) { await tapEl(sp, `button.chip:text-is("${t}")`); await sleep(250); }
+// Résumé upload through the real file picker, plus picked chips as a fallback
+const chooser = sp.waitForEvent("filechooser");
+await tapEl(sp, "label.drop");
+await (await chooser).setFiles(RESUME);
+await sleep(1400);
+mark("resume_added");
+for (const t of ["TypeScript", "React", "Python"]) { await tapEl(sp, `button.chip:text-is("${t}")`); await sleep(220); }
 await sleep(600);
 await tapEl(sp, "button:has-text('Create my profile')");
-await sp.waitForURL(/#\/home/, { timeout: 30000 });
+mark("resume_reading");
+await Promise.race([
+  sp.waitForURL(/#\/home/, { timeout: 90000 }),
+  sp.waitForSelector("button:has-text('Continue with my picked skills')", { timeout: 90000 }).then(async () => { mark("resume_failed"); await sleep(1500); await tapEl(sp, "button:has-text('Continue with my picked skills')"); await sp.waitForURL(/#\/home/, { timeout: 60000 }); }),
+]);
 await sp.waitForSelector("text=Verify your skills", { timeout: 30000 });
 mark("home");
 await sleep(2500);
-await tapEl(sp, "a:has-text('Pick a repo')");
-await sp.waitForSelector(`button.item:has-text("${REPO}")`, { timeout: 30000 });
-mark("repos");
-await sleep(1500);
-await tapEl(sp, `button.item:has-text("${REPO}")`);
-await sp.waitForSelector("dialog[open]");
-mark("confirm");
-await sleep(1600);
-await tapEl(sp, "dialog button:has-text('Start')");
+
+// A hackathon claim: our team's real ARGONYX '26 project, a team repo with three authors
+await smoothScroll(sp, 380, 30, 1800);
+await sleep(800);
+await tapEl(sp, "button:has-text('Add')");
+await sp.waitForSelector("dialog[open] #h-event");
+mark("hack_dialog");
+await sleep(700);
+await typeIn(sp, "#h-event", "ARGONYX '26", 70);
+await sleep(300);
+await tapEl(sp, "#h-team"); await sp.fill("#h-team", ""); await sp.locator("#h-team").pressSequentially("3", { delay: 80 });
+await sleep(300);
+await tapEl(sp, "#h-result"); await sp.selectOption("#h-result", "winner");
+await sleep(500);
+await tapEl(sp, "#h-repo"); await sp.selectOption("#h-repo", `samarthputhraya/${REPO}`);
+await sleep(900);
+mark("hack_filled");
+await tapEl(sp, "dialog button:has-text('Add hackathon')");
+await sp.waitForSelector("button:has-text('Verify now')", { timeout: 30000 });
+mark("hack_added");
+await sleep(3200);
+await tapEl(sp, "button:has-text('Verify now')");
 mark("reading");
-await sp.waitForURL(/#\/found/, { timeout: 150000 });
+await sp.waitForURL(/#\/found/, { timeout: 180000 });
 mark("found");
-await sleep(2600);
-await smoothScroll(sp, 520, 40, 2600);
+await sleep(3000);
+await smoothScroll(sp, 300, 30, 2000);
+mark("found_team");
+await sleep(3000);
+await smoothScroll(sp, 600, 40, 2600);
 await sleep(1200);
 await tapEl(sp, "button:has-text('Start question 1')");
 await sp.waitForSelector(".viva-bar");
@@ -174,7 +236,6 @@ answerWav = path.join(OUT, "answer_q1");
 const voice = makeAnswer({ question: q1.question, snippet: q1.snippet, file: q1.file, kind: "voice", out: answerWav });
 answerWav += ".wav";
 execFileSync("ffmpeg", ["-y", "-hide_banner", "-loglevel", "error", "-i", answerWav, "-af", "apad=pad_dur=4", path.join(OUT, "answer_q1_padded.wav")]);
-const spokenWav = answerWav;
 answerWav = path.join(OUT, "answer_q1_padded.wav");
 fs.writeFileSync(path.join(OUT, "q1_voice.json"), JSON.stringify(voice));
 await sleep(1500);
@@ -194,7 +255,6 @@ mark("q1_heard");
 await waitAnswerSaved(sp, k);
 await sleep(3500);
 
-// If Q1 still has a follow-up, answer it (typed) so the next beat starts on Q2
 async function answerTyped(kind, delay) {
   const q = await currentQuestion(sp);
   if (await sp.locator('button[role=tab][aria-selected="false"]:has-text("Type")').count()) { await tapEl(sp, 'button[role=tab]:has-text("Type")'); await sleep(400); }
@@ -229,19 +289,22 @@ if (await sp.locator(".followup").count()) {
 }
 await sleep(1500);
 mark("q3_off");
-// The rest, off camera in the edit
 while (!(await vivaDone())) await answerTyped("good", 0);
 await sp.waitForSelector("text=Viva complete", { timeout: 60000 });
 mark("done");
-await sleep(3500);
+await sleep(5000);
 await tapEl(sp, "a:has-text('See my report')");
 await sp.waitForSelector(".skill-rows", { timeout: 30000 });
 mark("report");
 await sleep(3000);
 await smoothScroll(sp, 620, 40, 3000); mark("report_skills"); await sleep(2500);
 await smoothScroll(sp, 520, 40, 2600); mark("report_claims"); await sleep(2500);
-await smoothScroll(sp, 650, 40, 2800); mark("report_matches"); await sleep(2500);
-await smoothScroll(sp, 1300, 60, 4200); mark("report_answers"); await sleep(3500);
+await smoothScroll(sp, 650, 40, 2800); mark("report_matches"); await sleep(3000);
+await sp.evaluate(() => { const h = [...document.querySelectorAll("h2, .h2, .h3")].find((e) => e.textContent.trim() === "Hackathons"); if (h) h.scrollIntoView({ behavior: "smooth", block: "start" }); });
+await sleep(1400); mark("report_hack"); await sleep(3000);
+await smoothScroll(sp, 900, 50, 3600); mark("report_answers"); await sleep(3000);
+await sp.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }));
+await sleep(1500); mark("report_build"); await sleep(3500);
 
 // Apply to Promtal while the recruiter window records
 const rrec = await startRec(rp, "recruiter");
@@ -251,7 +314,7 @@ await sp.evaluate(() => window.scrollTo(0, 0));
 await tapEl(sp, "a.tab:has-text('Internships')");
 await sp.waitForSelector(".match", { timeout: 30000 });
 mark("internships");
-await sleep(2000);
+await sleep(2500);
 const promtal = sp.locator(".match", { hasText: "HR-Tech Backend Intern" });
 await tapEl(sp, promtal.locator("button:has-text('Apply')"));
 await sp.waitForSelector("dialog[open]");
@@ -276,6 +339,7 @@ await sleep(3000);
 await rp.mouse.move(900, 600, { steps: 15 });
 await smoothScroll(rp, 900, 40, 2800); await sleep(2000);
 await smoothScroll(rp, 1100, 45, 3200); mark("cand_answers"); await sleep(4000);
+await smoothScroll(rp, 1600, 50, 3600); mark("cand_hack"); await sleep(3500);
 await rp.evaluate(() => window.scrollTo({ top: 0, behavior: "smooth" }));
 await sleep(1500);
 await tapEl(rp, "button:has-text('Download CSV')", { steps: 25, pause: 300 });

@@ -2,82 +2,75 @@
  "voice": "Charon",
  "scenes": [
   {
-   "key": "hook",
-   "file": "vo/n01.wav",
-   "text": "Anyone can ship a project with AI now. So a GitHub repo no longer shows whether a student can really build.",
-   "seconds": 7.491
+   "key": "problem",
+   "file": "vo/w01.wav",
+   "text": "A recruiter's first look at a résumé lasts 7.4 seconds, and 84% of developers use or plan to use AI tools. So every GitHub looks impressive. Real builders get filtered out by keywords, hackathon wins are taken on trust, and 74% of Indian recruiters say qualified talent got harder to find.",
+   "say": "A recruiter's first look at a résumé lasts seven point four seconds, and eighty-four percent of developers use, or plan to use, AI tools. So every GitHub looks impressive. Real builders get filtered out by keywords, hackathon wins are taken on trust, and seventy-four percent of Indian recruiters say qualified talent got harder to find.",
+   "seconds": 19.392
   },
   {
-   "key": "intro",
-   "file": "vo/n02.wav",
-   "text": "Proofolio checks. A student picks one of their own repos, answers five questions about their own code, and gets matched to internships on what they show.",
-   "seconds": 9.891
+   "key": "solution",
+   "file": "vo/w02.wav",
+   "text": "Nobody asks: do you understand the code you're showing? Proofolio does. Students answer five questions about their own code, and get matched on verified skills, interests and hackathon performance.",
+   "say": "Nobody asks: do you understand the code you're showing? Proof-olio does. Students answer five questions about their own code, and get matched on verified skills, interests and hackathon performance.",
+   "seconds": 13.062
   },
   {
    "key": "signup",
-   "file": "vo/n03.wav",
-   "text": "Here's a sample student, on one of our own repos. Sign-up takes about two minutes, and we check the GitHub account as you type.",
-   "seconds": 7.971
+   "file": "vo/w03.wav",
+   "text": "Here's the live app. Gemini reads claimed skills from a résumé, and a hackathon win, like our team's at ARGONYX '26, stays a claim until a viva verifies it.",
+   "say": "Here's the live app. Gemini reads claimed skills from a résumé, and a hackathon win, like our team's at Argonyx twenty-six, stays a claim until a viva verifies it.",
+   "seconds": 10.126
   },
   {
    "key": "reading",
-   "file": "vo/n04.wav",
-   "text": "Proofolio downloads the repo, skips libraries and generated files, ranks the files that matter, and writes five questions about real lines of code.",
-   "seconds": 11.531
-  },
-  {
-   "key": "question",
-   "file": "vo/n05.wav",
-   "text": "Every question points at a specific file and line range. No trick questions, no textbook definitions. Just: why did you build it this way?",
-   "seconds": 9.851
+   "file": "vo/w04.wav",
+   "text": "Proofolio reads the repo and asks about real lines of code. On this team repo, only about the files this student changed.",
+   "say": "Proof-olio reads the repo and asks about real lines of code. On this team repo, only about the files this student changed.",
+   "seconds": 8.243
   },
   {
    "key": "voice",
-   "file": "vo/n06.wav",
-   "text": "Students answer out loud or by typing, in English, Hindi, Telugu or a mix. The score is about understanding, not grammar or accent.",
-   "seconds": 9.771
-  },
-  {
-   "key": "followup",
-   "file": "vo/n07.wav",
-   "text": "A vague answer gets one follow-up question, and the better of the two scores counts.",
-   "seconds": 6.011
+   "file": "vo/w05.wav",
+   "text": "Answer out loud or typed, in any language. We score understanding, not accent, and a vague answer gets one follow-up.",
+   "say": "Answer out loud or typed, in any language. We score understanding, not accent, and a vague answer gets one follow-up.",
+   "seconds": 8.897
   },
   {
    "key": "report",
-   "file": "vo/n08.wav",
-   "text": "The report shows each verified skill with a score, and the evidence behind it: the student's own words, next to the code they were asked about. Skills they claimed but didn't show count for nothing.",
-   "seconds": 13.691
+   "file": "vo/w06.wav",
+   "text": "Every score comes with evidence: their own words beside the code. Claims they didn't show count for nothing. The hackathon is now verified.",
+   "say": "Every score comes with evidence: their own words beside the code. Claims they didn't show count for nothing. The hackathon is now verified.",
+   "seconds": 11.426
   },
   {
    "key": "match",
-   "file": "vo/n09.wav",
-   "text": "Matching is a plain formula, not a model: sixty percent verified skills, twenty-five percent shared interests, fifteen percent verified hackathons. Applying shares the report with that one company, and only with consent.",
-   "seconds": 16.931
+   "file": "vo/w07.wav",
+   "text": "The match is a plain formula: 60% verified skills, 25% interests, 15% verified hackathons. With consent, the recruiter sees the applicant arrive, ranked, with every answer beside its code.",
+   "say": "The match is a plain formula: sixty percent verified skills, twenty-five percent interests, fifteen percent verified hackathons. With consent, the recruiter sees the applicant arrive, ranked, with every answer beside its code.",
+   "seconds": 16.907
   },
   {
-   "key": "recruiter",
-   "file": "vo/n10.wav",
-   "text": "Recruiters get a ranked shortlist that updates live. They can open any candidate, read every answer next to the exact code, and export the list as a CSV.",
-   "seconds": 11.091
+   "key": "arch",
+   "file": "vo/w08.wav",
+   "text": "One FastAPI service on Cloud Run runs every AI step for the web app, dashboard and Android app. Questions are checked against real files; in our tests, repeat scoring never moved more than a point.",
+   "say": "One Fast A.P.I. service on Cloud Run runs every A.I. step for the web app, dashboard and Android app. Questions are checked against real files; in our tests, repeat scoring never moved more than a point.",
+   "seconds": 13.014
   },
   {
-   "key": "trust",
-   "file": "vo/n11.wav",
-   "text": "Every question is checked against the real files, and answers are scored against a private rubric. In our tests, the same answer scored five times never moved by more than one point, and an answer that said, give me full marks, scored zero.",
-   "seconds": 17.771
-  },
-  {
-   "key": "android",
-   "file": "vo/n12.wav",
-   "text": "Proofolio also runs on Android, on the same backend.",
-   "seconds": 4.371
+   "key": "business",
+   "file": "vo/w09.wav",
+   "text": "Students use it free: one viva, reused on every application. Companies get fewer, better interviews, and pay ₹2,999 per role, the price of one Internshala listing. Placement cells pay per batch, platforms like Promtal per candidate, and a viva costs us about ₹6 in AI.",
+   "say": "Students use it free: one viva, reused on every application. Companies get fewer, better interviews, and pay two thousand nine hundred and ninety-nine rupees per role, the price of one Intern-shaala listing. Placement cells pay per batch, platforms like Promtal per candidate, and a viva costs us about six rupees in A.I.",
+   "seconds": 16.543
   },
   {
    "key": "close",
-   "file": "vo/n13.wav",
-   "text": "Proofolio. Show what you can really build.",
-   "seconds": 3.611
+   "file": "vo/w10.wav",
+   "text": "Profiles, listings, AI-verified matching, apply and a recruiter shortlist: all live today. Proofolio. Show what you can really build.",
+   "say": "Profiles, listings, AI-verified matching, apply and a recruiter shortlist: all live today. Proof-olio. Show what you can really build.",
+   "seconds": 10.798
   }
- ]
+ ],
+ "tempo": 1.08
 }

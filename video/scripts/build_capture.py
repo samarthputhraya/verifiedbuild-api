@@ -12,7 +12,7 @@ PUB = os.path.join(HERE, "movie", "public")
 os.makedirs(PUB, exist_ok=True)
 markers = json.load(open(os.path.join(CAP, "markers.json")))
 timeline = {}
-for name in ["student", "recruiter"]:
+for name in ["landing", "student", "recruiter"]:
     meta = json.load(open(os.path.join(CAP, f"{name}.json")))
     frames = [f for f in meta["frames"] if os.path.exists(f["file"]) and os.path.getsize(f["file"]) > 0]
     t0 = frames[0]["t"]
