@@ -1,4 +1,4 @@
-# Handoff - 2026-10-11 05:50 IST, written by Claude session
+# Handoff - 2026-10-11 07:05 IST, written by Claude session
 
 ## Goal (one line)
 Proofolio: 5-question viva on a student's own repo → verified skill profile → internship match → recruiter shortlist.
@@ -7,7 +7,7 @@ Proofolio: 5-question viva on a student's own repo → verified skill profile �
 Phone 1: sign up → pick repo → analyze (~15 s) → answer question 1 by voice. Phone 2: a finished report (claimed vs verified, evidence, verified hackathon, matches) → apply with consent. Laptop: the Promtal shortlist on `/recruiter/`, where the student appears within 5 s. Script and lines: `docs/pitch.md`.
 
 ## Works now (verified, with how it was verified)
-- Live on Cloud Run, revision 00017 (Supabase + Vertex AI). `/api/health` returns `v1.1`. Earlier looks, if ever needed: 00011 (Material 3), 00013 (build run).
+- Live on Cloud Run, revision 00018 (Supabase + Vertex AI). `/api/health` returns `v1.1`. Earlier looks, if ever needed: 00011 (Material 3), 00013 (build run).
 - **Web rebuilt as a plain product UI on React-style components (11 Oct, 03:40):** Preact + htm as ES modules (no build step), Inter, one blue, borders not shadows, skeleton/empty/error states, light and dark. SAM asked for a professional, Fortune-500-style product look and nothing decorative, after rejecting the Material 3, seal and build-run designs.
   - Verified locally with real GitHub and Gemini: 4-step sign-up with the live GitHub check, home, repo list, analyzing checklist, what we found, the viva with a typed answer, a follow-up, 9 answers to done, the report, apply with the consent box, a spoken answer through the real recorder (bars moved, transcript came back), the recruiter listings, shortlist with the detail pane, candidate page, phone and desktop widths with no sideways scroll, dark mode. Zero console errors throughout.
 - **Earlier Material 3 version (18:00), the same flows:**
@@ -46,6 +46,9 @@ Phone 1: sign up → pick repo → analyze (~15 s) → answer question 1 by voic
 - **Live database at 05:50:** all test data deleted on SAM's request (6 test profiles, their vivas and applications). It now holds only the 6 listings and 3 labelled sample students on SAM's public repos (Riya on kavach, Arjun on Modelpin, Meera on aarogya-grid), real questions and scoring, AI-written answers, each applied to Promtal (shortlist: Arjun 51%, Meera 47%, Riya 38%). Script: scratchpad `live_samples.py`. `scripts.stats` counts them, so don't quote its numbers as volunteers.
 
 - **Renamed to Proofolio (05:40)** on SAM's call, matching Ayush's 04:43 Android rebrand: web app, dashboard, landing (new screenshots), API title, schema, contract and docs. The Cloud Run service and URL keep `verifiedbuild-api` (the Android app has the URL built in); `clients/android/` stays identical to his API layer. Ayush's 04:43 commit also added a labelled demo mode with sample data (Admin, Recruiter, Explore demo) and Skip buttons that don't reach the server; SAM chose to keep them and avoid them on camera.
+
+- **Demo video done (07:05):** `C:\Users\samar\OneDrive\Documents\Proofolio-demo.mp4`, 2:33, 1080p30, -16 LUFS. Recorded from the live app (a 4th labelled sample, "Kavya (sample)", now on the Promtal shortlist), Remotion edit, Gemini 2.5 Pro TTS narration, Lyria music; source and method in `video/`. No Android footage yet: drop a clip at `movie/public/android.mp4`, set `android: true` in the timeline, re-render.
+- **Bug fixed (06:30):** Stop hung forever if the mic stream ended before it was tapped (e.g. a Bluetooth mic dropping). Verified locally both ways; revision 00018.
 
 ## Next 3 steps (concrete, in order)
 0. Agreed plan (SAM, 05:00): no new features. Record the demo video on the live site, then write the PPT, then merge both repos into one and submit (`git subtree add --prefix=backend ... main` and `--prefix=frontend ...`, see CLAUDE.md).
