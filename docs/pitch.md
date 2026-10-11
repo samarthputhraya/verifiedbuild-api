@@ -1,4 +1,4 @@
-# VerifiedBuild pitch (3:00)
+# Proofolio pitch (3:00)
 
 **Before you rehearse, fill every `[bracket]` with real facts.** Don't make any of them up: judges who are founders will ask. Tonight, talk to 2–3 students at the venue (5 minutes each) and ask:
 1. "How many internships did you apply to last season, and how many replied?"
@@ -28,7 +28,7 @@ Use the student whose story is clearest. If a founder or recruiter at the event 
 | Time | Who | What to say |
 |---|---|---|
 | 0:00–0:30 | SAM | The opening above. |
-| 0:30–0:50 | SAM | "Today recruiters filter on resume keywords, CGPA and GitHub stars. A hackathon win on a resume is taken on trust, and in a team of four nobody can tell who built what. Coding tests are generic, and AI can solve those too. None of it asks: do you understand the code you're showing me? VerifiedBuild does, in five minutes." |
+| 0:30–0:50 | SAM | "Today recruiters filter on resume keywords, CGPA and GitHub stars. A hackathon win on a resume is taken on trust, and in a team of four nobody can tell who built what. Coding tests are generic, and AI can solve those too. None of it asks: do you understand the code you're showing me? Proofolio does, in five minutes." |
 | 0:50–2:00 | Ayush | The demo path below. Say out loud what the judge should notice. |
 | 2:00–2:30 | SAM | "The hard part is making the questions about real code and the scoring fair. Every question points at real lines in the student's repo: we check the lines exist and cut the snippet from the file ourselves. The answer is scored against a rubric that never leaves our server. Spoken and typed answers go through the same scoring step, and the language doesn't matter: a correct Hinglish answer scores 9 or 10 out of 10, the same as the English one. The match score itself uses no AI. It's a formula we can show you, and claimed skills count for zero." |
 | 2:30–3:00 | SAM | "[Who pays, from section 5.] Next we'd [one thing from the 30-day answer]. [Name] now has a profile that says: [skill], verified, [score], with [Name]'s own words as evidence. That's what gets [Name] the reply." |
@@ -37,7 +37,7 @@ Use the student whose story is clearest. If a founder or recruiter at the event 
 
 Prepare before going on stage:
 - **Phone 1 (mirrored to the projector):** the student web app, installed with Chrome's "Add to Home screen" so it opens full screen like an app. Sign up a second student up to the last step, but don't press "Create my profile". That student's repo must be public.
-  - Don't show the Android app: it doesn't use our API (checked 10 Oct, 23:45).
+  - Show the Proofolio Android app for a few seconds, signed in, to say it exists on Android too and uses the same API. Don't tap Admin, Recruiter, Explore demo or the Skip buttons on it: the first three open sample data, and Skip doesn't reach the server.
 - **Phone 2, or Phone 1 after the live part:** signed in as [Name], with a finished viva and a verified hackathon, and **not yet applied to Promtal**.
 - **Laptop:** the recruiter dashboard at `https://verifiedbuild-api-215071922486.asia-south1.run.app/recruiter/`, signed in and open on the Promtal shortlist, with 2–3 volunteers who already applied.
 - The backup video, ready to play.

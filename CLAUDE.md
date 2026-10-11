@@ -1,4 +1,4 @@
-# VerifiedBuild API — backend (Tri-City AI-Thon 2026, Promtal track)
+# Proofolio API — backend (Tri-City AI-Thon 2026, Promtal track)
 
 Read this file and **API_CONTRACT.md** before writing any code. API_CONTRACT.md is the single source of truth for every request and response shape. Never change a shape without SAM saying so.
 
@@ -6,7 +6,7 @@ Read this file and **API_CONTRACT.md** before writing any code. API_CONTRACT.md 
 
 **Required MVP scope:** student profile · listings · AI match score · apply button · admin shortlist.
 
-**One line:** AI lets anyone ship a project, so a repo no longer proves skill. VerifiedBuild reads a student's repo and asks them 5 questions about *their own code*. Their answers become a verified skill profile with evidence. Internships are matched, and applicants ranked, on verified skill.
+**One line:** AI lets anyone ship a project, so a repo no longer proves skill. Proofolio reads a student's repo and asks them 5 questions about *their own code*. Their answers become a verified skill profile with evidence. Internships are matched, and applicants ranked, on verified skill.
 
 **Positioning rules (copy, README, pitch):**
 - Say *verify, prove, show your skill*. Never say *catch, detect, cheat, flag*.
@@ -20,9 +20,9 @@ Read this file and **API_CONTRACT.md** before writing any code. API_CONTRACT.md 
 
 | Part | What | Owner | Repo |
 |---|---|---|---|
-| Frontend (the demo) | Student web app (`web/app/`), recruiter dashboard (`web/recruiter/`) and landing page: plain HTML/JS served by this API | SAM | this repo, Claude Code |
-| Android prototype | Google AI Studio Build mode, Kotlin. Not connected to this API (checked 10 Oct 23:45), so not in the demo | Ayush | `trulyayush/KITSW` |
-| Backend | Python 3.11 + FastAPI on Google Cloud Run | SAM | `verifiedbuild-api` (this repo, Claude Code) |
+| Frontend (the demo) | Student web app (`web/app/`), recruiter dashboard (`web/recruiter/`) and landing page: Preact components with no build step, served by this API | SAM | this repo, Claude Code |
+| Android app | Proofolio for Android: Google AI Studio Build mode, Kotlin. Uses this API only (since 11 Oct 00:22). Shown in the video as the Android version; the demo itself runs on the web app | Ayush | `trulyayush/KITSW` |
+| Backend | Python 3.11 + FastAPI on Google Cloud Run. The service and its URL keep the old name, `verifiedbuild-api` (the Android app has the URL built in) | SAM | `verifiedbuild-api` (this repo, Claude Code) |
 | Data | Supabase Postgres, accessed only from the backend with the service-role key. No Supabase Auth. | SAM | this repo, `supabase/schema.sql` |
 | AI | Gemini API via the `google-genai` Python SDK. Model from env `GEMINI_MODEL` (use the current Flash model). JSON output with a response schema. | SAM | this repo |
 | External | GitHub REST API with `GITHUB_TOKEN` | SAM | this repo |
@@ -236,9 +236,9 @@ gcloud run deploy verifiedbuild-api --source . --region asia-south1 \
   - everything above;
   - deploys, and owns `API_CONTRACT.md`;
   - runs the volunteer vivas.
-- **Ayush (Android prototype, `trulyayush/KITSW`):**
-  - built it in AI Studio; connecting it to this API is in `docs/ai-studio-android-prompts.md`;
-  - since the 23:00 cut-off on 10 Oct: pitch, backup video and volunteers.
+- **Ayush (Android app, `trulyayush/KITSW`):**
+  - built it in AI Studio from `docs/ai-studio-android-prompts.md`; it talks to this API only;
+  - its Admin, Recruiter and "Explore demo" buttons open a labelled demo mode with sample data, and its Skip buttons don't reach the server: don't use them on camera.
 - **Pitch:** drafted in the Claude chat. On stage, Ayush drives the demo and SAM explains how it works.
 - **Contract first:** SAM's first commit is every endpoint returning the **hard-coded examples** from API_CONTRACT.md, deployed. Real logic then replaces the mocks one endpoint at a time without changing shapes.
 

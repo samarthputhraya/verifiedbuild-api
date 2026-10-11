@@ -1,7 +1,7 @@
 # Handoff - 2026-10-11 05:10 IST, written by Claude session
 
 ## Goal (one line)
-VerifiedBuild: 5-question viva on a student's own repo → verified skill profile → internship match → recruiter shortlist.
+Proofolio: 5-question viva on a student's own repo → verified skill profile → internship match → recruiter shortlist.
 
 ## Demo path (the exact clicks a judge will see)
 Phone 1: sign up → pick repo → analyze (~15 s) → answer question 1 by voice. Phone 2: a finished report (claimed vs verified, evidence, verified hackathon, matches) → apply with consent. Laptop: the Promtal shortlist on `/recruiter/`, where the student appears within 5 s. Script and lines: `docs/pitch.md`.

@@ -4,7 +4,7 @@ These are the numbers the pitch needs, gathered from real students. All they nee
 
 ## What to say to each volunteer (about 30 seconds)
 
-> "We're testing VerifiedBuild. You pick one of your public GitHub repos and answer 5 questions about your own code, out loud or typed, in any language. It takes about 8 minutes. Your report is private to you: nobody sees it unless you press Apply on an internship. We'll only use totals in our pitch, never your name or scores. OK to go ahead?"
+> "We're testing Proofolio. You pick one of your public GitHub repos and answer 5 questions about your own code, out loud or typed, in any language. It takes about 8 minutes. Your report is private to you: nobody sees it unless you press Apply on an internship. We'll only use totals in our pitch, never your name or scores. OK to go ahead?"
 
 Only continue on a clear yes. Don't press Apply for them.
 

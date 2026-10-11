@@ -1,12 +1,12 @@
-# VerifiedBuild API
+# Proofolio API
 
-Backend for VerifiedBuild (Tri-City AI-Thon 2026, Promtal track): match students with internships on skills they have shown, not skills they have claimed.
+Backend for Proofolio (Tri-City AI-Thon 2026, Promtal track): match students with internships on skills they have shown, not skills they have claimed.
 
-AI lets anyone ship a project, so a repo alone no longer shows skill. VerifiedBuild reads a student's GitHub repo and asks them 5 questions about their own code, out loud or typed. Their answers become a verified skill profile with evidence. Internships are matched, and applicants ranked, on verified skill only.
+AI lets anyone ship a project, so a repo alone no longer shows skill. Proofolio reads a student's GitHub repo and asks them 5 questions about their own code, out loud or typed. Their answers become a verified skill profile with evidence. Internships are matched, and applicants ranked, on verified skill only.
 
 We don't try to tell who wrote the code, and using AI to build is fine. We measure whether the student understands the code they are showing, and we keep the evidence.
 
-- Live API: https://verifiedbuild-api-215071922486.asia-south1.run.app (try `/api/health` or `/docs`)
+- Live API: https://verifiedbuild-api-215071922486.asia-south1.run.app (try `/api/health` or `/docs`). The product was called VerifiedBuild until 11 Oct; the service and its URL keep that name.
 - Student app (web): https://verifiedbuild-api-215071922486.asia-south1.run.app/app/
   - The full student flow in any browser: sign up, add hackathons, pick a repo, answer 5 questions by voice or text, see the report, apply.
   - On a phone, Chrome's "Add to Home screen" installs it and it opens full screen.
@@ -98,7 +98,7 @@ Run [supabase/schema.sql](supabase/schema.sql) once in the Supabase SQL editor. 
 ## AI tools and APIs used
 
 - **Claude Code:** helped write this backend, the student web app and the recruiter dashboard
-- **Google AI Studio (Build mode):** an Android prototype in a separate repo. It doesn't use this API yet, so it isn't part of the demo.
+- **Google AI Studio (Build mode):** the Proofolio Android app, in a separate repo (`trulyayush/KITSW`). It uses this API for everything and holds no keys.
 - **Gemini API on Vertex AI:** question writing, answer scoring and resume reading (`gemini-3.8-flash`), and speech to text (`gemini-3.5-flash`)
 - **GitHub REST and GraphQL APIs:** reading the student's repo and its commit history
 - **Supabase:** Postgres database

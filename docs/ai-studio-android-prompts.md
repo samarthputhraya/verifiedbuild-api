@@ -1,5 +1,7 @@
 # VerifiedBuild Android app: AI Studio prompts (v2)
 
+> Written while the product was called VerifiedBuild. It is now Proofolio; the API, its URL and the code names below are unchanged.
+
 For: Ayush. From: SAM. Backend contract: `API_CONTRACT.md` **v1.1** in `verifiedbuild-api`.
 
 ---
