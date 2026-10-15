@@ -1,10 +1,12 @@
 # Proofolio
 
+🏆 **Winner: 1st place, Promtal track, Tri-City AI-Thon 2026** (Centle India, 10–11 October 2026)
+
 **Internships matched on skill a student has shown, not skill they have claimed.**
 
 Proofolio reads a student's GitHub repo and asks them 5 questions about their own code, out loud or typed. Their answers become a skill profile where every score comes with evidence. Internships are matched, and applicants ranked, on those verified skills only.
 
-**1st place, Promtal track, Tri-City AI-Thon 2026** (Centle India, 10–11 October 2026). Built in 24 hours by a team of two.
+Built in 24 hours by a team of two.
 
 Problem statement: *Match students with internships based on skills, interests and hackathon performance.*
 
