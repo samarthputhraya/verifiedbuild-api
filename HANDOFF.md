@@ -11,7 +11,7 @@ Proofolio won **1st place in the Promtal track** at Tri-City AI-Thon 2026 (Centl
 - Submission ZIP: `C:\Users\samar\OneDrive\Documents\Proofolio-source.zip` (built with `git archive` from the 11 Oct 08:34 commit).
 
 ## Live service: down since 15 Oct ~15:10 IST
-- https://verifiedbuild-api-215071922486.asia-south1.run.app returns 503: "billing is disabled for this project". The billing account "My Billing Account" (`011EEC-50FDC1-6523D2`) shows `open: False`. The other services in the same project are affected too (`gurugraph-web`, `aarogya-grid` and `lunaxx` logged the same error).
+- https://verifiedbuild-api-215071922486.asia-south1.run.app returns 503: "billing is disabled for this project". The billing account "My Billing Account" (`011EEC-50FDC1-6523D2`) shows `open: False`: Google suspended it on 14 Oct for a past-due payment (emails from 7 Oct on said "past due or invalid payment information"). The emails give 30 days, until about 13 Nov, to pay before the billing account and its projects are terminated. Whether the $300 trial credit is used up is visible only in the console (Billing → Credits). The other services in the same project are affected too (`gurugraph-web`, `aarogya-grid` and `lunaxx` logged the same error).
 - To bring it back: reopen or replace the billing account in the Google Cloud console, then run
   `gcloud run services update verifiedbuild-api --region asia-south1 --min-instances 0`
   so it costs nothing while idle (it is still set to 1, the judging setting; the update was refused while billing was closed).
